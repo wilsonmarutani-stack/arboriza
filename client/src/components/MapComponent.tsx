@@ -44,7 +44,7 @@ export function MapComponent({
 }: MapComponentProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
-  const markersGroupRef = useRef<L.MarkerClusterGroup | null>(null);
+  const markersGroupRef = useRef<any>(null);
   const draggableMarkerRef = useRef<L.Marker | null>(null);
 
   // Custom tree icons

@@ -607,7 +607,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                     <FormControl>
                       <Input 
                         placeholder="Endereço será preenchido automaticamente" 
-                        value={address || field.value}
+                        value={address || field.value || ""}
                         onChange={(e) => {
                           setAddress(e.target.value);
                           field.onChange(e.target.value);
@@ -752,7 +752,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                     <FormControl>
                       <Input 
                         placeholder="Espécie identificada ou corrigida manualmente" 
-                        {...field} 
+                        {...field}
+                        value={field.value || ""}
                         data-testid="input-especie-final"
                       />
                     </FormControl>
@@ -779,7 +780,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                       <Textarea 
                         rows={4} 
                         placeholder="Descreva detalhes sobre a condição da árvore, interferências na rede elétrica, riscos identificados, necessidade de poda, etc."
-                        {...field} 
+                        {...field}
+                        value={field.value || ""}
                         data-testid="textarea-observacoes"
                       />
                     </FormControl>

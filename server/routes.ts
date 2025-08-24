@@ -30,7 +30,7 @@ const upload = multer({
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Apenas imagens são permitidas'), false);
+      cb(null, false);
     }
   }
 });
@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       objectStorageService.downloadObject(objectFile, res);
     } catch (error) {
       console.error("Error serving object:", error);
-      if (error.name === "ObjectNotFoundError") {
+      if ((error as any).name === "ObjectNotFoundError") {
         return res.sendStatus(404);
       }
       return res.sendStatus(500);

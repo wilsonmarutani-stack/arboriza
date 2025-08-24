@@ -49,7 +49,7 @@ export default function Home() {
         return (
           <InspectionForm
             onClose={handleCloseInspectionForm}
-            initialData={inspectionFormData}
+            initialData={inspectionFormData || undefined}
           />
         );
       case "inspections":

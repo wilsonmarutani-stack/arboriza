@@ -130,7 +130,7 @@ export class MemStorage implements IStorage {
 
   async createMunicipio(municipio: InsertMunicipio): Promise<Municipio> {
     const id = randomUUID();
-    const newMunicipio: Municipio = { ...municipio, id, createdAt: new Date() };
+    const newMunicipio: Municipio = { ...municipio, id, createdAt: new Date(), uf: municipio.uf || "SP" };
     this.municipios.set(id, newMunicipio);
     return newMunicipio;
   }
@@ -231,7 +231,12 @@ export class MemStorage implements IStorage {
       ...inspecao, 
       id, 
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
+      endereco: inspecao.endereco || null,
+      observacoes: inspecao.observacoes || null,
+      especieFinal: inspecao.especieFinal || null,
+      especieConfiancaMedia: inspecao.especieConfiancaMedia || null,
+      fotoUrl: inspecao.fotoUrl || null
     };
     this.inspecoes.set(id, newInspecao);
     return newInspecao;
