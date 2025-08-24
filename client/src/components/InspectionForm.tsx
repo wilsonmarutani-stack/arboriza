@@ -68,6 +68,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       numeroNota: "",
       numeroOperativo: undefined,
       dataInspecao: new Date(),
+      eaId: "ea1", // Default EA to ensure municipios load
       prioridade: "baixa",
       latitude: coordinates.lat,
       longitude: coordinates.lng,
@@ -79,10 +80,15 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
   // Fetch reference data
   const { data: eas } = useQuery<Ea[]>({ queryKey: ["/api/refs/eas"] });
+  
+  // Get selected EA ID to fetch municipios
+  const selectedEaId = form.watch("eaId");
+  
   const { data: municipios } = useQuery<Municipio[]>({ 
-    queryKey: ["/api/refs/municipios", form.watch("eaId")],
-    enabled: !!form.watch("eaId")
+    queryKey: ["/api/refs/municipios", selectedEaId || "ea1"], // Default to ea1 if no EA selected
+    enabled: true // Always enabled to allow manual selection and auto-fill
   });
+  
   const { data: alimentadores } = useQuery<Alimentador[]>({ queryKey: ["/api/refs/alimentadores"] });
   const { data: subestacoes } = useQuery<Subestacao[]>({ queryKey: ["/api/refs/subestacoes"] });
 
@@ -219,13 +225,20 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     console.log('AutoFill municipality called with:', endereco, 'Available municipios:', municipios);
     
     if (!municipios || municipios.length === 0) {
-      console.log('No municipios available, will retry in 1 second');
-      // Retry after municipios are loaded
-      setTimeout(() => {
+      console.log('No municipios available, will retry in 2 seconds');
+      // Retry after municipios are loaded - try 3 times with longer delay
+      let retryCount = 0;
+      const retryInterval = setInterval(() => {
+        retryCount++;
         if (municipios && municipios.length > 0) {
+          console.log('Municipios now available, retrying auto-fill');
+          clearInterval(retryInterval);
           autoFillMunicipality(endereco);
+        } else if (retryCount >= 3) {
+          console.log('Max retries reached, municipios still not available');
+          clearInterval(retryInterval);
         }
-      }, 1000);
+      }, 2000);
       return;
     }
     
