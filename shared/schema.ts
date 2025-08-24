@@ -38,7 +38,7 @@ export const alimentadores = pgTable("alimentadores", {
 export const inspecoes = pgTable("inspecoes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   numeroNota: text("numero_nota").notNull(),
-  numeroOperativo: text("numero_operativo").notNull(),
+  numeroOperativo: text("numero_operativo"),
   dataInspecao: timestamp("data_inspecao").notNull(),
   eaId: varchar("ea_id").references(() => eas.id).notNull(),
   municipioId: varchar("municipio_id").references(() => municipios.id).notNull(),

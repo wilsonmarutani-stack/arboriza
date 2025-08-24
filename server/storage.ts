@@ -236,7 +236,8 @@ export class MemStorage implements IStorage {
       observacoes: inspecao.observacoes || null,
       especieFinal: inspecao.especieFinal || null,
       especieConfiancaMedia: inspecao.especieConfiancaMedia || null,
-      fotoUrl: inspecao.fotoUrl || null
+      fotoUrl: inspecao.fotoUrl || null,
+      numeroOperativo: inspecao.numeroOperativo || null
     };
     this.inspecoes.set(id, newInspecao);
     return newInspecao;
