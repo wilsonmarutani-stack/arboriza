@@ -1,0 +1,171 @@
+Quero refatorar o app de arborização para usar a Pl@ntNet API (grátis) em vez de OpenAI para identificar espécie por foto. Siga exatamente:
+
+1) Variáveis de ambiente (Replit Secrets)
+
+REMOVER a obrigatoriedade de OPENAI_API_KEY (pode ficar opcional).
+
+ADICIONAR PLANTNET_API_KEY (string).
+
+Já existem: SUPABASE_URL, SUPABASE_SERVICE_ROLE, etc.
+
+2) Dependências
+
+Instalar (se faltar):
+axios
+
+3) Backend – substituir a rota de IA
+
+Crie/atualize o arquivo backend/src/routes/ia.ts com este conteúdo (TypeScript, Express):
+
+import { Router } from "express";
+import axios from "axios";
+import { supabaseAdmin } from "../lib/supabaseAdmin";
+
+const router = Router();
+
+/**
+ * POST /api/ia/identificar-especie
+ * Body: { inspecao_id: string, organs?: string[], lang?: string }
+ * - Busca a foto no Supabase Storage (caminho em inspecoes.foto_path)
+ * - Gera URL assinada
+ * - Chama a Pl@ntNet API e devolve candidatos
+ * - NÃO expõe a API key no frontend
+ */
+router.post("/identificar-especie", async (req, res) => {
+  try {
+    const { inspecao_id, organs = ["leaf","flower","fruit","bark","habit"], lang = "pt" } = req.body || {};
+    if (!inspecao_id) return res.status(400).json({ error: "inspecao_id é obrigatório" });
+    if (!process.env.PLANTNET_API_KEY) return res.status(500).json({ error: "PLANTNET_API_KEY não configurada" });
+
+    // 1) Buscar a inspeção para obter o path da foto
+    const { data: inspecao, error: qErr } = await supabaseAdmin
+      .from("inspecoes")
+      .select("id, foto_path")
+      .eq("id", inspecao_id)
+      .single();
+    if (qErr || !inspecao) return res.status(404).json({ error: "Inspeção não encontrada" });
+    if (!inspecao.foto_path) return res.status(400).json({ error: "Inspeção não possui foto_path" });
+
+    // 2) Gerar URL assinada da foto no bucket 'arvores'
+    const { data: signed, error: sErr } = await supabaseAdmin.storage
+      .from("arvores")
+      .createSignedUrl(inspecao.foto_path, 60); // 60s
+    if (sErr || !signed?.signedUrl) return res.status(500).json({ error: "Falha ao gerar URL assinada da foto" });
+    const imageUrl = signed.signedUrl;
+
+    // 3) Montar chamada à Pl@ntNet
+    // Doc base: GET https://my-api.plantnet.org/v2/identify/all?api-key=...&images=...&organs=leaf&lang=pt
+    const params = new URLSearchParams();
+    params.append("api-key", process.env.PLANTNET_API_KEY as string);
+    params.append("images", imageUrl);
+    // múltiplos órgãos ajudam a precisão; envie todos os selecionados
+    organs.forEach((o: string) => params.append("organs", o));
+    params.append("lang", lang);
+    params.append("include-related-images", "false");
+    params.append("no-reject", "false");
+
+    const url = `https://my-api.plantnet.org/v2/identify/all?${params.toString()}`;
+    const { data } = await axios.get(url, { timeout: 20000 });
+
+    const candidatos = (data?.results || []).map((r: any) => ({
+      nome_cientifico: r?.species?.scientificName || r?.species?.scientificNameWithoutAuthor || null,
+      nome_comum: r?.species?.commonNames?.[0] || null,
+      confianca: Math.round((r?.score || 0) * 100),
+    }));
+
+    // calcular confiança média só dos top 5
+    const top = candidatos.slice(0, 5);
+    const confianca_media = top.length
+      ? Math.round(top.reduce((acc, c) => acc + (c.confianca || 0), 0) / top.length)
+      : null;
+
+    // NÃO salvamos direto; devolvemos para o front decidir/confirmar
+    return res.json({
+      especie_sugerida: candidatos[0]?.nome_cientifico || null,
+      candidatos,
+      confianca_media,
+      fonte: "Pl@ntNet",
+    });
+  } catch (e: any) {
+    const detail = e?.response?.data || e?.message || "Erro desconhecido";
+    const status = e?.response?.status || 500;
+    return res.status(status).json({ error: "Falha na identificação (Pl@ntNet)", detail });
+  }
+});
+
+export default router;
+
+
+Importante: garantir que backend/src/index.ts (ou onde registramos rotas) esteja usando:
+
+import iaRoutes from "./routes/ia";
+app.use("/api/ia", iaRoutes);
+
+4) Backend – remover trechos de OpenAI
+
+Apagar/ignorar qualquer chamada a openai nesta rota de identificação.
+
+Manter o restante do projeto igual (CSV/PDF/KML etc.).
+
+5) Frontend – chamada da nova rota
+
+Atualize o serviço que dispara a IA (ex.: src/services/ia.ts). Caso não exista, crie:
+
+// src/services/ia.ts
+export async function identificarEspecie(inspecaoId: string, organs: string[] = ["leaf","flower","fruit","bark","habit"]) {
+  const resp = await fetch("/api/ia/identificar-especie", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ inspecao_id: inspecaoId, organs, lang: "pt" }),
+  });
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error(err?.error || "Falha ao identificar espécie");
+  }
+  return resp.json();
+}
+
+
+E no formulário (onde está o botão “Identificar espécie (IA)”), chamar:
+
+const r = await identificarEspecie(inspecao.id);
+setCandidatos(r.candidatos);
+setEspecieSugerida(r.especie_sugerida);
+setConfiancaMedia(r.confianca_media);
+
+6) UI – crédito e seleção de órgão (opcional, mas recomendado)
+
+No componente do formulário, adicionar um combo multiseleção “O que aparece na foto?” com opções:
+folha (leaf), flor (flower), fruto (fruit), casca (bark), hábito (habit).
+
+Adicionar um rodapé pequeno “Identificação de espécie by Pl@ntNet” (crédito).
+
+7) Persistência (inalterada)
+
+Continuar salvando em especie_candidatos e inspecoes.especie_final após o usuário confirmar.
+
+Fluxo permanece: upload no bucket arvores/{auth.uid()}/{inspecao_id}.jpg → foto_path na linha → botão chama IA.
+
+8) Teste rápido
+
+Criar um script npm run test:plantnet que faz uma chamada local:
+
+curl -X POST http://localhost:PORT/api/ia/identificar-especie \
+  -H "Content-Type: application/json" \
+  -d '{"inspecao_id":"<UUID_EXISTENTE>"}'
+
+
+Esperado: JSON com especie_sugerida, candidatos[], confianca_media.
+
+9) Critérios de aceite
+
+O botão “Identificar espécie (IA)” retorna candidatos da Pl@ntNet.
+
+Sem vazamento de chave no frontend.
+
+Em caso de limite/cota, a UI mostra erro amigável e sugere tentar depois.
+
+Mantém todo o resto do app funcionando (mapa, arrastar marcador, relatório e exports).
+
+Implemente tudo acima e faça um commit com a mensagem:
+chore(ia): replace OpenAI vision with Pl@ntNet API + signed URL flow

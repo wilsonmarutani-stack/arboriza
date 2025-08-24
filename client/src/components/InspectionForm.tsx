@@ -14,8 +14,10 @@ import { MapComponent } from "./MapComponent";
 import { ObjectUploader } from "./ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { insertInspecaoSchema, type Ea, type Municipio, type Alimentador, type Subestacao } from "@shared/schema";
-import { X, Camera, Brain, Save, MapPin } from "lucide-react";
+import { identificarEspecie } from "@/services/ia";
+import { X, Camera, Brain, Save, MapPin, Check } from "lucide-react";
 import { z } from "zod";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { UploadResult } from "@uppy/core";
 
 interface SpeciesCandidate {
@@ -27,6 +29,7 @@ interface SpeciesIdentificationResult {
   especie_sugerida: string;
   candidatos: SpeciesCandidate[];
   confianca_media: number;
+  fonte?: string;
 }
 
 const formSchema = insertInspecaoSchema.extend({
@@ -49,6 +52,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const [showCameraOptions, setShowCameraOptions] = useState(false);
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [speciesResults, setSpeciesResults] = useState<SpeciesIdentificationResult | null>(null);
+  const [selectedOrgans, setSelectedOrgans] = useState<string[]>(["leaf", "flower", "fruit", "bark", "habit"]);
   const [coordinates, setCoordinates] = useState({
     lat: initialData?.lat || -23.2017,
     lng: initialData?.lng || -47.2911
@@ -172,18 +176,19 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   // Reverse geocoding with municipality auto-fill
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
+      console.log('Starting reverse geocoding for coordinates:', { lat, lng });
       const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
       const data = await response.json();
+      
+      console.log('Reverse geocoding response:', data);
+      
       if (data.endereco) {
         setAddress(data.endereco);
         form.setValue("endereco", data.endereco);
         
-        // Auto-fill municipality based on address (with retry for municipios loading)
-        setTimeout(() => {
-          if (municipios && municipios.length > 0) {
-            autoFillMunicipality(data.endereco);
-          }
-        }, 500); // Small delay to ensure municipios are loaded
+        // Auto-fill municipality based on address
+        console.log('Attempting to auto-fill municipality with:', data.endereco);
+        await autoFillMunicipality(data.endereco);
       }
     } catch (error) {
       console.error("Erro no geocoding:", error);
@@ -196,40 +201,14 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     const file = input.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = async (e) => {
+      reader.onload = (e) => {
         const result = e.target?.result as string;
         setPhotoPreview(result);
         
-        // Upload the captured image to object storage
-        try {
-          const formData = new FormData();
-          formData.append('imagem', file);
-          
-          const response = await fetch('/api/ia/identificar-especie', {
-            method: 'POST',
-            body: formData
-          });
-          
-          if (response.ok) {
-            const speciesResult: SpeciesIdentificationResult = await response.json();
-            setSpeciesResults(speciesResult);
-            
-            // Auto-fill species information
-            form.setValue("especieFinal", speciesResult.especie_sugerida);
-            form.setValue("especieConfiancaMedia", speciesResult.confianca_media);
-            
-            toast({
-              title: "Espécie identificada",
-              description: `${speciesResult.especie_sugerida} identificada automaticamente com ${speciesResult.confianca_media.toFixed(0)}% de confiança`,
-            });
-          }
-        } catch (error) {
-          console.error('Erro na identificação automática:', error);
-          toast({
-            title: "Foto capturada",
-            description: "Foto capturada com sucesso! Use o botão 'Identificar Espécie' para análise.",
-          });
-        }
+        toast({
+          title: "Foto capturada",
+          description: "Foto capturada com sucesso! Use o botão 'Identificar Espécie' para análise.",
+        });
       };
       reader.readAsDataURL(file);
     }
@@ -240,17 +219,48 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     console.log('AutoFill municipality called with:', endereco, 'Available municipios:', municipios);
     
     if (!municipios || municipios.length === 0) {
-      console.log('No municipios available');
+      console.log('No municipios available, will retry in 1 second');
+      // Retry after municipios are loaded
+      setTimeout(() => {
+        if (municipios && municipios.length > 0) {
+          autoFillMunicipality(endereco);
+        }
+      }, 1000);
       return;
     }
     
     // Extract city name from address (look for municipality names in the address)
     const addressLower = endereco.toLowerCase();
+    const addressParts = endereco.split(',').map(part => part.trim());
     
-    const matchingMunicipio = municipios.find(municipio => {
+    console.log('Address parts:', addressParts);
+    
+    // Try to match municipality names in different parts of the address
+    let matchingMunicipio = null;
+    
+    // First try exact matches
+    for (const municipio of municipios) {
       const municipioLower = municipio.nome.toLowerCase();
-      return addressLower.includes(municipioLower) || municipioLower.includes(addressLower.split(',')[0].trim());
-    });
+      if (addressLower.includes(municipioLower)) {
+        matchingMunicipio = municipio;
+        break;
+      }
+    }
+    
+    // If no exact match, try partial matches
+    if (!matchingMunicipio) {
+      for (const part of addressParts) {
+        const partLower = part.toLowerCase();
+        for (const municipio of municipios) {
+          const municipioLower = municipio.nome.toLowerCase();
+          if (partLower.includes(municipioLower) || municipioLower.includes(partLower)) {
+            matchingMunicipio = municipio;
+            break;
+          }
+        }
+        if (matchingMunicipio) break;
+      }
+    }
     
     console.log('Matching municipio found:', matchingMunicipio);
     
@@ -260,6 +270,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
         title: "Município identificado",
         description: `${matchingMunicipio.nome} selecionado automaticamente com base na localização`,
       });
+    } else {
+      console.log('No matching municipio found for address:', endereco);
     }
   };
 
@@ -322,7 +334,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     }
   };
 
-  // Identify species with AI
+  // Identify species with PlantNet AI
   const identifySpecies = async () => {
     if (!uploadedImageUrl && !photoPreview) {
       toast({
@@ -336,36 +348,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     setIsIdentifying(true);
 
     try {
-      let response;
-      
-      if (uploadedImageUrl) {
-        // Use cloud-based identification for uploaded images
-        response = await fetch("/api/ia/identificar-especie-cloud", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            imageUrl: uploadedImageUrl,
-          }),
-        });
-      } else if (photoPreview) {
-        // Convert data URL to blob for camera captures
-        const blob = await fetch(photoPreview).then(r => r.blob());
-        const formData = new FormData();
-        formData.append('imagem', blob, 'camera-capture.jpg');
-        
-        response = await fetch('/api/ia/identificar-especie', {
-          method: 'POST',
-          body: formData
-        });
+      const imageUrl = uploadedImageUrl || photoPreview;
+      if (!imageUrl) {
+        throw new Error("URL da imagem não disponível");
       }
 
-      if (!response || !response.ok) {
-        throw new Error("Erro na identificação");
-      }
-
-      const result: SpeciesIdentificationResult = await response.json();
+      const result = await identificarEspecie(imageUrl, selectedOrgans);
       setSpeciesResults(result);
       
       // Set the suggested species in the form
@@ -374,7 +362,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
       toast({
         title: "Espécie identificada",
-        description: `${result.especie_sugerida} identificada com ${result.confianca_media.toFixed(0)}% de confiança`,
+        description: `${result.especie_sugerida} identificada com ${result.confianca_media?.toFixed(0) || 0}% de confiança via ${result.fonte || 'IA'}`,
       });
     } catch (error) {
       console.error('Erro na identificação:', error);
@@ -725,6 +713,40 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
               <CardTitle>Informações da Árvore</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Plant Organs Selection for AI */}
+              <div className="space-y-4">
+                <Label className="text-lg font-medium">O que aparece na foto?</Label>
+                <p className="text-sm text-gray-600">Selecione as partes da planta visíveis na foto para melhorar a identificação</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {[
+                    { id: "leaf", label: "Folha", emoji: "🍃" },
+                    { id: "flower", label: "Flor", emoji: "🌸" },
+                    { id: "fruit", label: "Fruto", emoji: "🍎" },
+                    { id: "bark", label: "Casca", emoji: "🌳" },
+                    { id: "habit", label: "Hábito", emoji: "🌲" }
+                  ].map((organ) => (
+                    <div key={organ.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
+                      <Checkbox
+                        id={organ.id}
+                        checked={selectedOrgans.includes(organ.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedOrgans(prev => [...prev, organ.id]);
+                          } else {
+                            setSelectedOrgans(prev => prev.filter(o => o !== organ.id));
+                          }
+                        }}
+                        data-testid={`checkbox-organ-${organ.id}`}
+                      />
+                      <Label htmlFor={organ.id} className="flex items-center space-x-2 cursor-pointer">
+                        <span className="text-lg">{organ.emoji}</span>
+                        <span className="text-sm">{organ.label}</span>
+                      </Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Photo Upload */}
               <div>
                 <Label>Foto da Árvore *</Label>
@@ -837,8 +859,13 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                     <Brain className="w-5 h-5 text-blue-600 mr-2" />
                     <h4 className="font-semibold text-blue-900">Identificação por IA</h4>
                     <span className="ml-auto bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
-                      {speciesResults.confianca_media.toFixed(0)}% confiança média
+                      {speciesResults.confianca_media?.toFixed(0) || 0}% confiança média
                     </span>
+                  </div>
+                  
+                  {/* PlantNet Credit */}
+                  <div className="mb-3">
+                    <p className="text-xs text-blue-700">Identificação de espécie by <strong>Pl@ntNet</strong></p>
                   </div>
                   
                   <div className="space-y-3">
@@ -858,12 +885,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                           <div className="text-right flex items-center space-x-3">
                             <div className="text-center">
                               <span className="text-sm font-medium text-green-600">
-                                {candidato.confianca.toFixed(0)}%
+                                {candidato.confianca?.toFixed(0) || 0}%
                               </span>
                               <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
                                 <div 
                                   className="bg-green-500 h-1.5 rounded-full" 
-                                  style={{ width: `${candidato.confianca}%` }}
+                                  style={{ width: `${candidato.confianca || 0}%` }}
                                 ></div>
                               </div>
                             </div>

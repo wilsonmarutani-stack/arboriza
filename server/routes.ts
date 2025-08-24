@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
-import { identifyTreeSpecies } from "./openaiService";
+// import { identifyTreeSpecies } from "./openaiService"; // Removed - using PlantNet instead
 import { exportService } from "./exportService";
 import { insertInspecaoSchema, insertEspecieCandidatoSchema } from "@shared/schema";
 import multer from "multer";
@@ -204,55 +204,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // AI species identification
-  app.post("/api/ia/identificar-especie", upload.single('imagem'), async (req, res) => {
+  // PlantNet API route - replaced by dedicated ia routes
+  app.post("/api/ia/identificar-especie", async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "Imagem é obrigatória" });
-      }
+      const { imageUrl, organs = ["leaf","flower","fruit","bark","habit"], lang = "pt" } = req.body || {};
+      if (!imageUrl) return res.status(400).json({ error: "imageUrl é obrigatória" });
+      if (!process.env.PLANTNET_API_KEY) return res.status(500).json({ error: "PLANTNET_API_KEY não configurada" });
 
-      // Convert image to base64
-      const imageBuffer = fs.readFileSync(req.file.path);
-      const imageBase64 = imageBuffer.toString('base64');
+      // Montar chamada à Pl@ntNet
+      const params = new URLSearchParams();
+      params.append("api-key", process.env.PLANTNET_API_KEY as string);
+      params.append("images", imageUrl);
+      // múltiplos órgãos ajudam a precisão; envie todos os selecionados
+      organs.forEach((o: string) => params.append("organs", o));
+      params.append("lang", lang);
+      params.append("include-related-images", "false");
+      params.append("no-reject", "false");
 
-      // Call OpenAI Vision API
-      const result = await identifyTreeSpecies(imageBase64);
+      const url = `https://my-api.plantnet.org/v2/identify/all?${params.toString()}`;
+      const axios = await import('axios');
+      const { data } = await axios.default.get(url, { timeout: 20000 });
 
-      // Clean up uploaded file
-      fs.unlinkSync(req.file.path);
+      const candidatos = (data?.results || []).map((r: any) => ({
+        nome: r?.species?.scientificName || r?.species?.scientificNameWithoutAuthor || "Desconhecido",
+        confianca: Math.round((r?.score || 0) * 100),
+      }));
 
-      res.json(result);
-    } catch (error) {
-      console.error("Erro na identificação de espécie:", error);
-      res.status(500).json({ error: "Erro ao identificar espécie da árvore" });
+      // calcular confiança média só dos top 5
+      const top = candidatos.slice(0, 5);
+      const confianca_media = top.length
+        ? Math.round(top.reduce((acc, c) => acc + (c.confianca || 0), 0) / top.length)
+        : 0;
+
+      // NÃO salvamos direto; devolvemos para o front decidir/confirmar
+      return res.json({
+        especie_sugerida: candidatos[0]?.nome || "Espécie não identificada",
+        candidatos,
+        confianca_media,
+        fonte: "Pl@ntNet",
+      });
+    } catch (e: any) {
+      const detail = e?.response?.data || e?.message || "Erro desconhecido";
+      const status = e?.response?.status || 500;
+      console.error("Erro na identificação Pl@ntNet:", { error: e, detail, status });
+      return res.status(status).json({ error: "Falha na identificação (Pl@ntNet)", detail });
     }
   });
 
   // Object storage based species identification (for cloud storage)
-  app.post("/api/ia/identificar-especie-cloud", async (req, res) => {
-    try {
-      const { imageUrl } = req.body;
-      if (!imageUrl) {
-        return res.status(400).json({ error: "URL da imagem é obrigatória" });
-      }
-
-      // Download image from object storage
-      const response = await fetch(imageUrl);
-      if (!response.ok) {
-        throw new Error('Falha ao baixar imagem');
-      }
-
-      const imageBuffer = Buffer.from(await response.arrayBuffer());
-      const imageBase64 = imageBuffer.toString('base64');
-
-      // Call OpenAI Vision API
-      const result = await identifyTreeSpecies(imageBase64);
-
-      res.json(result);
-    } catch (error) {
-      console.error("Erro na identificação de espécie via cloud:", error);
-      res.status(500).json({ error: "Erro ao identificar espécie da árvore" });
-    }
-  });
+  // Removed OpenAI cloud identification - using PlantNet instead
 
   // Save uploaded tree image with ACL policy
   app.put("/api/tree-images", async (req, res) => {
