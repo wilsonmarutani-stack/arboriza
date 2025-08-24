@@ -107,6 +107,7 @@ export const insertInspecaoSchema = createInsertSchema(inspecoes).pick({
   prioridade: z.enum(["baixa", "media", "alta"]),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
+  numeroOperativo: z.string().optional(),
 });
 
 export const insertEspecieCandidatoSchema = createInsertSchema(especieCandidatos).pick({

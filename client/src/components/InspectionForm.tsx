@@ -62,7 +62,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       numeroNota: "",
-      numeroOperativo: "",
+      numeroOperativo: undefined,
       dataInspecao: new Date(),
       prioridade: "baixa",
       latitude: coordinates.lat,
@@ -178,8 +178,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
         setAddress(data.endereco);
         form.setValue("endereco", data.endereco);
         
-        // Auto-fill municipality based on address
-        await autoFillMunicipality(data.endereco);
+        // Auto-fill municipality based on address (with retry for municipios loading)
+        setTimeout(() => {
+          if (municipios && municipios.length > 0) {
+            autoFillMunicipality(data.endereco);
+          }
+        }, 500); // Small delay to ensure municipios are loaded
       }
     } catch (error) {
       console.error("Erro no geocoding:", error);
@@ -187,16 +191,45 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   };
 
   // Handle camera capture
-  const handleCameraCapture = (event: Event) => {
+  const handleCameraCapture = async (event: Event) => {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         const result = e.target?.result as string;
         setPhotoPreview(result);
-        // For camera captures, we'll use local storage since it's simpler
-        // In a real implementation, you might want to upload to object storage here too
+        
+        // Upload the captured image to object storage
+        try {
+          const formData = new FormData();
+          formData.append('imagem', file);
+          
+          const response = await fetch('/api/ia/identificar-especie', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (response.ok) {
+            const speciesResult: SpeciesIdentificationResult = await response.json();
+            setSpeciesResults(speciesResult);
+            
+            // Auto-fill species information
+            form.setValue("especieFinal", speciesResult.especie_sugerida);
+            form.setValue("especieConfiancaMedia", speciesResult.confianca_media);
+            
+            toast({
+              title: "Espécie identificada",
+              description: `${speciesResult.especie_sugerida} identificada automaticamente com ${speciesResult.confianca_media.toFixed(0)}% de confiança`,
+            });
+          }
+        } catch (error) {
+          console.error('Erro na identificação automática:', error);
+          toast({
+            title: "Foto capturada",
+            description: "Foto capturada com sucesso! Use o botão 'Identificar Espécie' para análise.",
+          });
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -204,30 +237,29 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
   // Auto-fill municipality based on geocoding result
   const autoFillMunicipality = async (endereco: string) => {
-    if (!municipios || municipios.length === 0) return;
+    console.log('AutoFill municipality called with:', endereco, 'Available municipios:', municipios);
     
-    // Extract city name from address (usually the second-to-last part before state)
-    const addressParts = endereco.split(',').map(part => part.trim());
-    const cityFromAddress = addressParts.find(part => 
-      municipios.some(municipio => 
-        municipio.nome.toLowerCase().includes(part.toLowerCase()) ||
-        part.toLowerCase().includes(municipio.nome.toLowerCase())
-      )
-    );
+    if (!municipios || municipios.length === 0) {
+      console.log('No municipios available');
+      return;
+    }
     
-    if (cityFromAddress) {
-      const matchingMunicipio = municipios.find(municipio => 
-        municipio.nome.toLowerCase().includes(cityFromAddress.toLowerCase()) ||
-        cityFromAddress.toLowerCase().includes(municipio.nome.toLowerCase())
-      );
-      
-      if (matchingMunicipio) {
-        form.setValue("municipioId", matchingMunicipio.id);
-        toast({
-          title: "Município identificado",
-          description: `${matchingMunicipio.nome} selecionado automaticamente`,
-        });
-      }
+    // Extract city name from address (look for municipality names in the address)
+    const addressLower = endereco.toLowerCase();
+    
+    const matchingMunicipio = municipios.find(municipio => {
+      const municipioLower = municipio.nome.toLowerCase();
+      return addressLower.includes(municipioLower) || municipioLower.includes(addressLower.split(',')[0].trim());
+    });
+    
+    console.log('Matching municipio found:', matchingMunicipio);
+    
+    if (matchingMunicipio) {
+      form.setValue("municipioId", matchingMunicipio.id);
+      toast({
+        title: "Município identificado",
+        description: `${matchingMunicipio.nome} selecionado automaticamente com base na localização`,
+      });
     }
   };
 
@@ -292,7 +324,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
   // Identify species with AI
   const identifySpecies = async () => {
-    if (!uploadedImageUrl) {
+    if (!uploadedImageUrl && !photoPreview) {
       toast({
         title: "Erro",
         description: "Faça upload de uma foto primeiro",
@@ -304,17 +336,32 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     setIsIdentifying(true);
 
     try {
-      const response = await fetch("/api/ia/identificar-especie-cloud", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imageUrl: uploadedImageUrl,
-        }),
-      });
+      let response;
+      
+      if (uploadedImageUrl) {
+        // Use cloud-based identification for uploaded images
+        response = await fetch("/api/ia/identificar-especie-cloud", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            imageUrl: uploadedImageUrl,
+          }),
+        });
+      } else if (photoPreview) {
+        // Convert data URL to blob for camera captures
+        const blob = await fetch(photoPreview).then(r => r.blob());
+        const formData = new FormData();
+        formData.append('imagem', blob, 'camera-capture.jpg');
+        
+        response = await fetch('/api/ia/identificar-especie', {
+          method: 'POST',
+          body: formData
+        });
+      }
 
-      if (!response.ok) {
+      if (!response || !response.ok) {
         throw new Error("Erro na identificação");
       }
 
@@ -330,6 +377,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
         description: `${result.especie_sugerida} identificada com ${result.confianca_media.toFixed(0)}% de confiança`,
       });
     } catch (error) {
+      console.error('Erro na identificação:', error);
       toast({
         title: "Erro na identificação",
         description: "Não foi possível identificar a espécie. Verifique sua conexão e tente novamente.",
