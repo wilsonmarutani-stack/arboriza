@@ -1,0 +1,124 @@
+Quero que você gere um aplicativo completo de ARBORIZAÇÃO URBANA, full-stack, pronto para rodar no Replit, com:
+
+STACK E PADRÕES
+- Frontend: React + Vite + TypeScript + TailwindCSS.
+- Mapa: Leaflet + OpenStreetMap (com MarkerCluster).
+- Backend: Node.js + Express (TypeScript) OU FastAPI (se preferir Python). Escolha um e mantenha o padrão no projeto.
+- Banco: SQLite (simples para Replit) + Prisma/SQLModel. Facilite a troca para Postgres depois.
+- Upload de imagens: armazenamento local em /uploads (e prepare adapter para S3 no futuro).
+- .env com variáveis: OPENAI_API_KEY (ou outra IA de visão), BASE_URL, MAP_TILE_URL, etc.
+- Documentação no README com passo a passo de execução no Replit.
+
+FUNCIONALIDADES CENTRAIS
+1) Cadastro de inspeções de árvores:
+   - Capturar foto da árvore (upload).
+   - Capturar localização por GPS do dispositivo (geolocation API do navegador).
+   - Exibir um marcador no mapa assim que a inspeção for criada.
+   - Permitir arrastar o marcador no mapa (dragend) para ajustar manualmente a posição: ao soltar, atualizar lat/lng no formulário e no banco.
+   - Reverse geocoding (Nominatim/OSM) para preencher endereço aproximado (logradouro, bairro, município, UF).
+
+2) Campos obrigatórios do formulário (com validação):
+   - Número da Nota (texto)
+   - Número Operativo (texto)
+   - Data da Inspeção (data/hora)
+   - EA (Estação Avançada) — lista suspensa (ex.: EA Salto, EA Indaiatuba, EA Itu, etc.)
+   - Município — lista suspensa (vinculado à EA)
+   - Alimentador — código com padrão 3 letras + 2 números (regex: ^[A-Z]{3}\d{2}$) ex.: ITU01, PGO10, CLO14
+   - Subestação — texto descritivo (ex.: “Salto1 – Porto Góes”)
+   - Latitude, Longitude (preencher por GPS; editáveis via mapa)
+   - Prioridade (Baixa, Média, Alta)
+   - Observações (texto)
+
+   *Obs.: Criar tabelas auxiliares para EA, Municípios, Alimentadores e uma relação Alimentador→Subestação. Incluir seed inicial (EA Salto, Itu, Indaiatuba; exemplos de municípios e alimentadores).*
+
+3) Identificação da espécie com IA (a partir da foto):
+   - Endpoint no backend: POST /api/ia/identificar-especie que recebe a imagem da árvore e retorna:
+     { especie_sugerida, candidatos: [{nome, confianca}], confianca_media }
+   - Implementar com a OpenAI Vision (gpt-4o/gpt-4.1 com imagem) OU outra API de visão. O código deve:
+     * Ler OPENAI_API_KEY do .env
+     * Enviar a foto e pedir a identificação botânica (nome comum e científico) + confiança
+     * Receber até 5 candidatos ordenados por confiança
+   - No frontend, após upload da foto, exibir um botão “Identificar espécie (IA)”. Preencher automaticamente os campos “Espécie sugerida” e uma tabela de candidatos com a confiança (%). Permitir o usuário confirmar/editar a espécie final antes de salvar.
+
+4) Tabela para relatório (listagem com filtros) e exportação:
+   - Página “Relatório” com DataTable (paginação, busca, filtros por EA, Município, Alimentador, Prioridade, Data).
+   - Colunas principais: Data, EA, Município, Alimentador, Subestação, Endereço, Latitude, Longitude, Espécie final, Confiança média (IA), Prioridade, Nº Nota, Nº Operativo.
+   - Ações: ver/editar, abrir no mapa, baixar foto.
+   - Exportar CSV e PDF (gerar PDF no backend com layout simples e cabeçalho com logo/título).
+   - Exportar KML (pontos com ícone de árvore e nome = espécie; descrição com EA/Município/Alimentador/endereços).
+
+5) Mapa principal:
+   - Exibir todas as inspeções com cluster.
+   - Ícone de árvore (usar um marker customizado). Tooltip com espécie/EA/município.
+   - Barra lateral com filtros (EA, Município, Alimentador, Prioridade, intervalo de datas).
+   - Ao clicar no ponto, abrir card com foto, espécie, endereço e botões “Editar” e “Centralizar”.
+   - Botão “Adicionar inspeção aqui” que cria rascunho preenchendo lat/lng do ponto clicado.
+
+6) Edição/ajuste direto no mapa:
+   - No formulário de inspeção, mostrar o mapa focado na posição do registro, com o marker arrastável.
+   - Ao arrastar, atualizar os campos lat/lng e o endereço (chamar reverse geocoding de novo).
+
+7) Dashboard simples:
+   - Contadores: total de inspeções, por prioridade, por município.
+   - Gráfico de barras (por município) e pizza (por prioridade).
+   - Atualização em tempo real após CRUD.
+
+API E SCHEMA (sugestão)
+- Tabelas:
+  * ea (id, nome)
+  * municipios (id, nome, uf, ea_id)
+  * subestacoes (id, nome)
+  * alimentadores (id, codigo, subestacao_id)  // validar ^[A-Z]{3}\d{2}$
+  * inspecoes (
+      id, created_at, data_inspecao, numero_nota, numero_operativo,
+      ea_id, municipio_id, alimentador_id, subestacao_id,
+      latitude, longitude, endereco, prioridade, observacoes,
+      especie_final, especie_confianca_media, foto_url
+    )
+  * especie_candidatos (
+      id, inspecao_id, nome, confianca
+    )
+
+- Endpoints (exemplos):
+  * GET /api/refs/ea, /api/refs/municipios?ea_id=, /api/refs/alimentadores, /api/refs/subestacoes
+  * POST /api/inspecoes  (multipart para foto; salva e retorna registro + IA opcional)
+  * GET /api/inspecoes   (filtros, paginação)
+  * GET /api/inspecoes/:id
+  * PUT /api/inspecoes/:id  (atualiza campos e, se foto trocou, reprocessar IA sob demanda)
+  * DELETE /api/inspecoes/:id
+  * POST /api/ia/identificar-especie (recebe imagem, retorna candidatos)
+  * GET /api/export/csv, /api/export/pdf, /api/export/kml  (respeitando filtros via querystring)
+
+UX/VALIDAÇÕES
+- UI em português (BR).
+- Form com máscaras e validações (regex do Alimentador; campos obrigatórios).
+- Loading/estados vazios; toasts de sucesso/erro; confirmação antes de excluir.
+- Mobile-friendly (layout responsivo).
+
+SEGURANÇA E LGPD
+- Não expor a OPENAI_API_KEY no frontend; chamada de IA sempre via backend.
+- Limitar tamanho de imagem e aceitar formatos comuns (jpg/png).
+- Sanitizar inputs; tratar erros de rede e timeouts da IA.
+
+ENTREGÁVEIS
+- Código completo (frontend e backend) no mesmo Replit, com scripts:
+  * “dev” para rodar frontend e backend
+  * “seed” para popular EA/Municípios/Alimentadores/Subestações de exemplo
+- README: como configurar .env, rodar seed, iniciar app e trocar de SQLite para Postgres.
+- Testes básicos de API (ex.: criação/edição de inspeção e exportação CSV).
+- Dados de demonstração (3 EAs, 6 municípios, 6 alimentadores, 1 subestação por alimentador).
+- Ícone de árvore personalizado para o mapa.
+
+CRITÉRIOS DE ACEITE
+- Consigo criar uma inspeção enviando uma foto, obter proposta de espécie via IA e salvar espécie final.
+- O ponto aparece no mapa e posso arrastar para corrigir a posição; lat/lng e endereço atualizam.
+- A listagem mostra as colunas pedidas e exporta CSV, PDF e KML.
+- Filtros de EA/Município/Alimentador/Prioridade funcionam no mapa e na tabela.
+- Dashboard exibe contagens e gráficos coerentes com os dados.
+
+Opcional (se der tempo):
+- PWA (instalável).
+- Modo offline de rascunho (salvar localStorage e sincronizar depois).
+- Exportar KMZ além de KML.
+
+Implemente tudo acima.
