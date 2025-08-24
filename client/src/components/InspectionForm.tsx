@@ -1,3 +1,4 @@
+// src/components/InspectionForm.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,7 +16,7 @@ import { ObjectUploader } from "./ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { insertInspecaoSchema, type Ea, type Municipio, type Alimentador, type Subestacao } from "@shared/schema";
 import { identificarEspecie } from "@/services/ia";
-import { X, Camera, Brain, Save, MapPin, Check } from "lucide-react";
+import { X, Camera, Brain, Save, MapPin } from "lucide-react";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { UploadResult } from "@uppy/core";
@@ -24,7 +25,6 @@ interface SpeciesCandidate {
   nome: string;
   confianca: number;
 }
-
 interface SpeciesIdentificationResult {
   especie_sugerida: string;
   candidatos: SpeciesCandidate[];
@@ -35,15 +35,11 @@ interface SpeciesIdentificationResult {
 const formSchema = insertInspecaoSchema.extend({
   foto: z.any().optional(),
 });
-
 type FormData = z.infer<typeof formSchema>;
 
 interface InspectionFormProps {
   onClose: () => void;
-  initialData?: {
-    lat?: number;
-    lng?: number;
-  };
+  initialData?: { lat?: number; lng?: number };
 }
 
 export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
@@ -55,7 +51,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const [selectedOrgans, setSelectedOrgans] = useState<string[]>(["leaf", "flower", "fruit", "bark", "habit"]);
   const [coordinates, setCoordinates] = useState({
     lat: initialData?.lat || -23.2017,
-    lng: initialData?.lng || -47.2911
+    lng: initialData?.lng || -47.2911,
   });
   const [address, setAddress] = useState("");
 
@@ -68,317 +64,202 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       numeroNota: "",
       numeroOperativo: undefined,
       dataInspecao: new Date(),
-      eaId: "ea1", // Default EA to ensure municipios load
+      eaId: "",              // sem default "ea1"
+      municipioId: "",
       prioridade: "baixa",
       latitude: coordinates.lat,
       longitude: coordinates.lng,
       endereco: "",
       observacoes: "",
       especieFinal: "",
-    }
+    },
   });
 
-  // Fetch reference data
+  // --------- Referências ----------
   const { data: eas } = useQuery<Ea[]>({ queryKey: ["/api/refs/eas"] });
-  
-  // Get selected EA ID to fetch municipios
+
+  // pré-seleciona a primeira EA carregada (opcional)
+  useEffect(() => {
+    if (!form.getValues("eaId") && eas?.length) {
+      form.setValue("eaId", eas[0].id);
+    }
+  }, [eas]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const selectedEaId = form.watch("eaId");
-  
-  const { data: municipios } = useQuery<Municipio[]>({ 
-    queryKey: ["/api/refs/municipios", selectedEaId || "ea1"], // Default to ea1 if no EA selected
-    enabled: true // Always enabled to allow manual selection and auto-fill
+
+  // zera município ao trocar EA
+  useEffect(() => {
+    form.setValue("municipioId", "");
+  }, [selectedEaId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Municipios filtrados por EA – passa ea_id na URL
+  const { data: municipios, isFetching: municipiosLoading } = useQuery<Municipio[]>({
+    queryKey: ["/api/refs/municipios", selectedEaId],
+    enabled: !!selectedEaId,
+    queryFn: async () => {
+      const url = `/api/refs/municipios?ea_id=${encodeURIComponent(selectedEaId!)}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Erro ao carregar municípios");
+      return resp.json();
+    },
   });
-  
+
   const { data: alimentadores } = useQuery<Alimentador[]>({ queryKey: ["/api/refs/alimentadores"] });
   const { data: subestacoes } = useQuery<Subestacao[]>({ queryKey: ["/api/refs/subestacoes"] });
 
-  // Create inspection mutation
+  // --------- Mutação (criar inspeção) ----------
   const createInspectionMutation = useMutation({
     mutationFn: async (data: FormData) => {
-      const formData = new FormData();
-      
-      // Add all form fields
+      const fd = new FormData();
       Object.entries(data).forEach(([key, value]) => {
         if (key !== "foto" && value !== undefined && value !== null) {
-          if (value instanceof Date) {
-            formData.append(key, value.toISOString());
-          } else {
-            formData.append(key, String(value));
-          }
+          if (value instanceof Date) fd.append(key, value.toISOString());
+          else fd.append(key, String(value));
         }
       });
+      if (uploadedImageUrl) fd.append("fotoUrl", uploadedImageUrl);
 
-      // Add photo URL if uploaded via object storage
-      if (uploadedImageUrl) {
-        formData.append("fotoUrl", uploadedImageUrl);
-      }
-
-      const response = await fetch("/api/inspecoes", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Erro ao criar inspeção");
-      }
-
-      return response.json();
+      const resp = await fetch("/api/inspecoes", { method: "POST", body: fd });
+      if (!resp.ok) throw new Error((await resp.json()).message || "Erro ao criar inspeção");
+      return resp.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inspecoes"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
-      toast({
-        title: "Sucesso",
-        description: "Inspeção criada com sucesso!",
-      });
+      toast({ title: "Sucesso", description: "Inspeção criada com sucesso!" });
       onClose();
     },
     onError: (error: any) => {
-      toast({
-        title: "Erro",
-        description: error.message || "Erro ao criar inspeção",
-        variant: "destructive",
-      });
-    }
+      toast({ title: "Erro", description: error.message || "Erro ao criar inspeção", variant: "destructive" });
+    },
   });
 
-  // Get current location
+  // --------- Geolocalização / geocoding ----------
   const getCurrentLocation = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newCoords = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
-          };
-          setCoordinates(newCoords);
-          form.setValue("latitude", newCoords.lat);
-          form.setValue("longitude", newCoords.lng);
-          reverseGeocode(newCoords.lat, newCoords.lng);
-          
-          toast({
-            title: "Localização obtida",
-            description: "Coordenadas atualizadas com sua localização atual",
-          });
-        },
-        (error) => {
-          toast({
-            title: "Erro de localização",
-            description: "Não foi possível obter sua localização. Verifique as permissões do navegador.",
-            variant: "destructive",
-          });
-        }
-      );
-    } else {
-      toast({
-        title: "Geolocalização não suportada",
-        description: "Seu navegador não suporta geolocalização",
-        variant: "destructive",
-      });
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocalização não suportada", description: "Seu navegador não suporta geolocalização", variant: "destructive" });
+      return;
     }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const newCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setCoordinates(newCoords);
+        form.setValue("latitude", newCoords.lat);
+        form.setValue("longitude", newCoords.lng);
+        reverseGeocode(newCoords.lat, newCoords.lng);
+        toast({ title: "Localização obtida", description: "Coordenadas atualizadas com sua localização atual" });
+      },
+      () => {
+        toast({
+          title: "Erro de localização",
+          description: "Não foi possível obter sua localização. Verifique as permissões do navegador.",
+          variant: "destructive",
+        });
+      }
+    );
   };
 
-  // Reverse geocoding with municipality auto-fill
   const reverseGeocode = async (lat: number, lng: number) => {
     try {
-      console.log('Starting reverse geocoding for coordinates:', { lat, lng });
       const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
       const data = await response.json();
-      
-      console.log('Reverse geocoding response:', data);
-      
       if (data.endereco) {
         setAddress(data.endereco);
         form.setValue("endereco", data.endereco);
-        
-        // Auto-fill municipality based on address
-        console.log('Attempting to auto-fill municipality with:', data.endereco);
         await autoFillMunicipality(data.endereco);
       }
-    } catch (error) {
-      console.error("Erro no geocoding:", error);
+    } catch (e) {
+      console.error("Erro no geocoding:", e);
     }
   };
 
-  // Handle camera capture
   const handleCameraCapture = async (event: Event) => {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const result = e.target?.result as string;
-        setPhotoPreview(result);
-        
-        toast({
-          title: "Foto capturada",
-          description: "Foto capturada com sucesso! Use o botão 'Identificar Espécie' para análise.",
-        });
-      };
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const result = e.target?.result as string;
+      setPhotoPreview(result);
+      toast({ title: "Foto capturada", description: "Use o botão 'Identificar Espécie' para análise." });
+    };
+    reader.readAsDataURL(file);
   };
 
-  // Auto-fill municipality based on geocoding result
+  // tenta selecionar município com base no endereço
   const autoFillMunicipality = async (endereco: string) => {
-    console.log('AutoFill municipality called with:', endereco, 'Available municipios:', municipios);
-    
-    if (!municipios || municipios.length === 0) {
-      console.log('No municipios available, will retry in 2 seconds');
-      // Retry after municipios are loaded - try 3 times with longer delay
-      let retryCount = 0;
-      const retryInterval = setInterval(() => {
-        retryCount++;
-        if (municipios && municipios.length > 0) {
-          console.log('Municipios now available, retrying auto-fill');
-          clearInterval(retryInterval);
-          autoFillMunicipality(endereco);
-        } else if (retryCount >= 3) {
-          console.log('Max retries reached, municipios still not available');
-          clearInterval(retryInterval);
-        }
-      }, 2000);
-      return;
-    }
-    
-    // Extract city name from address (look for municipality names in the address)
+    if (!municipios?.length) return;
     const addressLower = endereco.toLowerCase();
-    const addressParts = endereco.split(',').map(part => part.trim());
-    
-    console.log('Address parts:', addressParts);
-    
-    // Try to match municipality names in different parts of the address
-    let matchingMunicipio = null;
-    
-    // First try exact matches
-    for (const municipio of municipios) {
-      const municipioLower = municipio.nome.toLowerCase();
-      if (addressLower.includes(municipioLower)) {
-        matchingMunicipio = municipio;
-        break;
-      }
+    const addressParts = endereco.split(",").map((p: string) => p.trim());
+
+    let matching: Municipio | null = null;
+
+    for (const m of municipios) {
+      const name = m.nome.toLowerCase();
+      if (addressLower.includes(name)) { matching = m; break; }
     }
-    
-    // If no exact match, try partial matches
-    if (!matchingMunicipio) {
-      for (const part of addressParts) {
-        const partLower = part.toLowerCase();
-        for (const municipio of municipios) {
-          const municipioLower = municipio.nome.toLowerCase();
-          if (partLower.includes(municipioLower) || municipioLower.includes(partLower)) {
-            matchingMunicipio = municipio;
-            break;
-          }
+    if (!matching) {
+      outer: for (const part of addressParts) {
+        const p = part.toLowerCase();
+        for (const m of municipios) {
+          const name = m.nome.toLowerCase();
+          if (p.includes(name) || name.includes(p)) { matching = m; break outer; }
         }
-        if (matchingMunicipio) break;
       }
     }
-    
-    console.log('Matching municipio found:', matchingMunicipio);
-    
-    if (matchingMunicipio) {
-      form.setValue("municipioId", matchingMunicipio.id);
-      toast({
-        title: "Município identificado",
-        description: `${matchingMunicipio.nome} selecionado automaticamente com base na localização`,
-      });
-    } else {
-      console.log('No matching municipio found for address:', endereco);
+    if (matching) {
+      form.setValue("municipioId", matching.id);
+      toast({ title: "Município identificado", description: `${matching.nome} selecionado automaticamente` });
     }
   };
 
-  // Handle object storage upload
+  // --------- Upload objeto (replit object storage / supabase signed URL etc.) ----------
   const handleGetUploadParameters = async () => {
-    try {
-      const response = await fetch("/api/objects/upload", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error("Erro ao obter URL de upload");
-      }
-
-      const { uploadURL } = await response.json();
-      
-      return {
-        method: "PUT" as const,
-        url: uploadURL,
-      };
-    } catch (error) {
-      console.error("Erro ao obter parâmetros de upload:", error);
-      throw error;
-    }
+    const resp = await fetch("/api/objects/upload", { method: "POST", headers: { "Content-Type": "application/json" } });
+    if (!resp.ok) throw new Error("Erro ao obter URL de upload");
+    const { uploadURL } = await resp.json();
+    return { method: "PUT" as const, url: uploadURL };
   };
 
   const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful && result.successful.length > 0) {
-      const uploadedFile = result.successful[0];
-      const imageUrl = uploadedFile.uploadURL;
-      
-      if (imageUrl) {
-        setUploadedImageUrl(imageUrl);
-        setPhotoPreview(imageUrl);
+    if (!result.successful?.length) return;
+    const imageUrl = result.successful[0].uploadURL as string | undefined;
+    if (!imageUrl) return;
 
-        // Save the uploaded image with ACL policy
-        try {
-          await fetch("/api/tree-images", {
-            method: "PUT",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              imageUrl: imageUrl,
-              inspecaoId: "temp" // Will be updated when inspection is created
-            }),
-          });
+    setUploadedImageUrl(imageUrl);
+    setPhotoPreview(imageUrl);
 
-          toast({
-            title: "Upload concluído",
-            description: "Foto da árvore enviada com sucesso!",
-          });
-        } catch (error) {
-          console.error("Erro ao configurar política de acesso:", error);
-        }
-      }
+    try {
+      await fetch("/api/tree-images", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ imageUrl, inspecaoId: "temp" }),
+      });
+      toast({ title: "Upload concluído", description: "Foto da árvore enviada com sucesso!" });
+    } catch (e) {
+      console.error("Erro ao configurar política de acesso:", e);
     }
   };
 
-  // Identify species with PlantNet AI
+  // --------- IA (Pl@ntNet) ----------
   const identifySpecies = async () => {
     if (!uploadedImageUrl && !photoPreview) {
-      toast({
-        title: "Erro",
-        description: "Faça upload de uma foto primeiro",
-        variant: "destructive",
-      });
+      toast({ title: "Erro", description: "Faça upload de uma foto primeiro", variant: "destructive" });
       return;
     }
-
     setIsIdentifying(true);
-
     try {
-      const imageUrl = uploadedImageUrl || photoPreview;
-      if (!imageUrl) {
-        throw new Error("URL da imagem não disponível");
-      }
-
+      const imageUrl = uploadedImageUrl || photoPreview!;
       const result = await identificarEspecie(imageUrl, selectedOrgans);
       setSpeciesResults(result);
-      
-      // Set the suggested species in the form
       form.setValue("especieFinal", result.especie_sugerida);
       form.setValue("especieConfiancaMedia", result.confianca_media);
-
       toast({
         title: "Espécie identificada",
-        description: `${result.especie_sugerida} identificada com ${result.confianca_media?.toFixed(0) || 0}% de confiança via ${result.fonte || 'IA'}`,
+        description: `${result.especie_sugerida} com ${result.confianca_media?.toFixed(0) || 0}% via ${result.fonte || "IA"}`,
       });
-    } catch (error) {
-      console.error('Erro na identificação:', error);
+    } catch (e) {
+      console.error("Erro na identificação:", e);
       toast({
         title: "Erro na identificação",
         description: "Não foi possível identificar a espécie. Verifique sua conexão e tente novamente.",
@@ -389,7 +270,6 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     }
   };
 
-  // Handle map marker drag
   const handleMarkerDrag = (lat: number, lng: number) => {
     setCoordinates({ lat, lng });
     form.setValue("latitude", lat);
@@ -397,28 +277,15 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     reverseGeocode(lat, lng);
   };
 
-  // Use species candidate
-  const useSpeciesCandidate = (candidate: SpeciesCandidate) => {
-    form.setValue("especieFinal", candidate.nome);
-    form.setValue("especieConfiancaMedia", candidate.confianca);
-    
-    toast({
-      title: "Espécie selecionada",
-      description: `${candidate.nome} selecionada como espécie final`,
-    });
+  const useSpeciesCandidate = (c: SpeciesCandidate) => {
+    form.setValue("especieFinal", c.nome);
+    form.setValue("especieConfiancaMedia", c.confianca);
+    toast({ title: "Espécie selecionada", description: `${c.nome} selecionada como espécie final` });
   };
 
   const onSubmit = (data: FormData) => {
-    // Add the uploaded image URL
-    if (uploadedImageUrl) {
-      data.fotoUrl = uploadedImageUrl;
-    }
-    
-    createInspectionMutation.mutate({
-      ...data,
-      latitude: coordinates.lat,
-      longitude: coordinates.lng,
-    });
+    if (uploadedImageUrl) data.fotoUrl = uploadedImageUrl;
+    createInspectionMutation.mutate({ ...data, latitude: coordinates.lat, longitude: coordinates.lng });
   };
 
   return (
@@ -477,9 +344,9 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   <FormItem>
                     <FormLabel>Data da Inspeção *</FormLabel>
                     <FormControl>
-                      <Input 
-                        type="datetime-local" 
-                        value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : ''}
+                      <Input
+                        type="datetime-local"
+                        value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : ""}
                         onChange={(e) => field.onChange(new Date(e.target.value))}
                         data-testid="input-data-inspecao"
                       />
@@ -495,13 +362,13 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Prioridade *</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value} data-testid="select-prioridade">
+                    <Select onValueChange={field.onChange} value={field.value} data-testid="select-prioridade">
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione a prioridade" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="z-[9999]" position="popper">
                         <SelectItem value="baixa">Baixa</SelectItem>
                         <SelectItem value="media">Média</SelectItem>
                         <SelectItem value="alta">Alta</SelectItem>
@@ -533,13 +400,13 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>EA (Estação Avançada) *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} data-testid="select-ea">
+                      <Select onValueChange={field.onChange} value={field.value ?? ""} data-testid="select-ea">
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione a EA" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="z-[9999]" position="popper">
                           {eas?.map((ea) => (
                             <SelectItem key={ea.id} value={ea.id}>
                               {ea.nome}
@@ -558,16 +425,21 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Município *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} data-testid="select-municipio">
+                      <Select
+                        onValueChange={field.onChange}
+                        value={field.value ?? ""}
+                        disabled={!selectedEaId || !municipios?.length || municipiosLoading}
+                        data-testid="select-municipio"
+                      >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o município" />
+                            <SelectValue placeholder={municipiosLoading ? "Carregando..." : "Selecione o município"} />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {municipios?.map((municipio) => (
-                            <SelectItem key={municipio.id} value={municipio.id}>
-                              {municipio.nome}
+                        <SelectContent className="z-[9999]" position="popper">
+                          {municipios?.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>
+                              {m.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -583,16 +455,16 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Alimentador *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} data-testid="select-alimentador">
+                      <Select onValueChange={field.onChange} value={field.value ?? ""} data-testid="select-alimentador">
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione o alimentador" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {alimentadores?.map((alimentador) => (
-                            <SelectItem key={alimentador.id} value={alimentador.id}>
-                              {alimentador.codigo}
+                        <SelectContent className="z-[9999]" position="popper">
+                          {alimentadores?.map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.codigo}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -608,16 +480,16 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subestação</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} data-testid="select-subestacao">
+                      <Select onValueChange={field.onChange} value={field.value ?? ""} data-testid="select-subestacao">
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione a subestação" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
-                          {subestacoes?.map((subestacao) => (
-                            <SelectItem key={subestacao.id} value={subestacao.id}>
-                              {subestacao.nome}
+                        <SelectContent className="z-[9999]" position="popper">
+                          {subestacoes?.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>
+                              {s.nome}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -634,15 +506,15 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                     <FormItem>
                       <FormLabel>Latitude *</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          step="any" 
-                          className="font-mono" 
+                        <Input
+                          type="number"
+                          step="any"
+                          className="font-mono"
                           placeholder="-23.123456"
                           value={coordinates.lat}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value);
-                            setCoordinates(prev => ({ ...prev, lat: value }));
+                            setCoordinates((prev) => ({ ...prev, lat: value }));
                             field.onChange(value);
                           }}
                           data-testid="input-latitude"
@@ -660,15 +532,15 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                     <FormItem>
                       <FormLabel>Longitude *</FormLabel>
                       <FormControl>
-                        <Input 
-                          type="number" 
-                          step="any" 
-                          className="font-mono" 
+                        <Input
+                          type="number"
+                          step="any"
+                          className="font-mono"
                           placeholder="-47.654321"
                           value={coordinates.lng}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value);
-                            setCoordinates(prev => ({ ...prev, lng: value }));
+                            setCoordinates((prev) => ({ ...prev, lng: value }));
                             field.onChange(value);
                           }}
                           data-testid="input-longitude"
@@ -689,7 +561,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   draggableMarker={{
                     lat: coordinates.lat,
                     lng: coordinates.lng,
-                    onDrag: handleMarkerDrag
+                    onDrag: handleMarkerDrag,
                   }}
                   className="mt-2"
                 />
@@ -703,8 +575,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   <FormItem>
                     <FormLabel>Endereço</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Endereço será preenchido automaticamente" 
+                      <Input
+                        placeholder="Endereço será preenchido automaticamente"
                         value={address || field.value || ""}
                         onChange={(e) => {
                           setAddress(e.target.value);
@@ -736,18 +608,15 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                     { id: "flower", label: "Flor", emoji: "🌸" },
                     { id: "fruit", label: "Fruto", emoji: "🍎" },
                     { id: "bark", label: "Casca", emoji: "🌳" },
-                    { id: "habit", label: "Hábito", emoji: "🌲" }
+                    { id: "habit", label: "Hábito", emoji: "🌲" },
                   ].map((organ) => (
                     <div key={organ.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
                       <Checkbox
                         id={organ.id}
                         checked={selectedOrgans.includes(organ.id)}
                         onCheckedChange={(checked) => {
-                          if (checked) {
-                            setSelectedOrgans(prev => [...prev, organ.id]);
-                          } else {
-                            setSelectedOrgans(prev => prev.filter(o => o !== organ.id));
-                          }
+                          if (checked) setSelectedOrgans((prev) => [...prev, organ.id]);
+                          else setSelectedOrgans((prev) => prev.filter((o) => o !== organ.id));
                         }}
                         data-testid={`checkbox-organ-${organ.id}`}
                       />
@@ -767,26 +636,21 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   {photoPreview ? (
                     <div className="space-y-4">
                       <div className="relative">
-                        <img 
-                          src={photoPreview} 
-                          alt="Preview da foto da árvore" 
+                        <img
+                          src={photoPreview}
+                          alt="Preview da foto da árvore"
                           className="mx-auto rounded-lg shadow-sm max-h-64 object-cover w-full"
                           data-testid="img-photo-preview"
                         />
                       </div>
                       <div className="flex space-x-3 justify-center">
-                        <Button 
-                          type="button" 
-                          onClick={identifySpecies} 
-                          disabled={isIdentifying}
-                          data-testid="button-identificar-especie"
-                        >
+                        <Button type="button" onClick={identifySpecies} disabled={isIdentifying} data-testid="button-identificar-especie">
                           <Brain className="w-4 h-4 mr-2" />
                           {isIdentifying ? "Identificando..." : "Identificar Espécie (IA)"}
                         </Button>
-                        <Button 
-                          type="button" 
-                          variant="destructive" 
+                        <Button
+                          type="button"
+                          variant="destructive"
                           onClick={() => {
                             setUploadedImageUrl(null);
                             setPhotoPreview(null);
@@ -806,11 +670,11 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                           type="button"
                           variant="outline"
                           onClick={() => {
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = 'image/*';
-                            input.capture = 'environment';
-                            input.onchange = handleCameraCapture;
+                            const input = document.createElement("input");
+                            input.type = "file";
+                            input.accept = "image/*";
+                            (input as any).capture = "environment";
+                            input.onchange = handleCameraCapture as any;
                             input.click();
                           }}
                           className="h-20 border-2 border-dashed border-primary-300 hover:border-primary-400"
@@ -821,7 +685,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                             <span>Tirar Foto</span>
                           </div>
                         </Button>
-                        
+
                         <Button
                           type="button"
                           variant="outline"
@@ -837,12 +701,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                           </div>
                         </Button>
                       </div>
-                      
+
                       {/* File Uploader */}
                       {showCameraOptions && (
                         <ObjectUploader
                           maxNumberOfFiles={1}
-                          maxFileSize={10485760} // 10MB
+                          maxFileSize={10485760}
                           onGetUploadParameters={handleGetUploadParameters}
                           onComplete={handleUploadComplete}
                           buttonClassName="w-full bg-primary-50 hover:bg-primary-100 border-2 border-dashed border-primary-300 text-primary-700 p-8 rounded-lg transition-colors"
@@ -875,46 +739,33 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                       {speciesResults.confianca_media?.toFixed(0) || 0}% confiança média
                     </span>
                   </div>
-                  
-                  {/* PlantNet Credit */}
+
                   <div className="mb-3">
-                    <p className="text-xs text-blue-700">Identificação de espécie by <strong>Pl@ntNet</strong></p>
+                    <p className="text-xs text-blue-700">
+                      Identificação de espécie by <strong>Pl@ntNet</strong>
+                    </p>
                   </div>
-                  
+
                   <div className="space-y-3">
-                    {speciesResults.candidatos.map((candidato, index) => (
-                      <div 
-                        key={index} 
-                        className={`${index === 0 ? 'bg-white border-2 border-green-200' : 'bg-gray-50'} rounded-lg p-3 transition-all hover:bg-gray-100`}
-                        data-testid={`species-candidate-${index}`}
+                    {speciesResults.candidatos.map((c, i) => (
+                      <div
+                        key={i}
+                        className={`${i === 0 ? "bg-white border-2 border-green-200" : "bg-gray-50"} rounded-lg p-3 transition-all hover:bg-gray-100`}
+                        data-testid={`species-candidate-${i}`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <p className="font-medium text-gray-900">{candidato.nome}</p>
-                            {index === 0 && (
-                              <p className="text-xs text-green-600 font-medium">Recomendação principal</p>
-                            )}
+                            <p className="font-medium text-gray-900">{c.nome}</p>
+                            {i === 0 && <p className="text-xs text-green-600 font-medium">Recomendação principal</p>}
                           </div>
                           <div className="text-right flex items-center space-x-3">
                             <div className="text-center">
-                              <span className="text-sm font-medium text-green-600">
-                                {candidato.confianca?.toFixed(0) || 0}%
-                              </span>
+                              <span className="text-sm font-medium text-green-600">{c.confianca?.toFixed(0) || 0}%</span>
                               <div className="w-16 bg-gray-200 rounded-full h-1.5 mt-1">
-                                <div 
-                                  className="bg-green-500 h-1.5 rounded-full" 
-                                  style={{ width: `${candidato.confianca || 0}%` }}
-                                ></div>
+                                <div className="bg-green-500 h-1.5 rounded-full" style={{ width: `${c.confianca || 0}%` }} />
                               </div>
                             </div>
-                            <Button 
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="text-primary-600 hover:text-primary-700 text-sm"
-                              onClick={() => useSpeciesCandidate(candidato)}
-                              data-testid={`button-use-species-${index}`}
-                            >
+                            <Button type="button" variant="ghost" size="sm" className="text-primary-600 hover:text-primary-700 text-sm" onClick={() => useSpeciesCandidate(c)} data-testid={`button-use-species-${i}`}>
                               Usar esta espécie
                             </Button>
                           </div>
@@ -932,12 +783,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   <FormItem>
                     <FormLabel>Espécie Final</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="Espécie identificada ou corrigida manualmente" 
-                        {...field}
-                        value={field.value || ""}
-                        data-testid="input-especie-final"
-                      />
+                      <Input placeholder="Espécie identificada ou corrigida manualmente" {...field} value={field.value || ""} data-testid="input-especie-final" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -959,8 +805,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   <FormItem>
                     <FormLabel>Observações</FormLabel>
                     <FormControl>
-                      <Textarea 
-                        rows={4} 
+                      <Textarea
+                        rows={4}
                         placeholder="Descreva detalhes sobre a condição da árvore, interferências na rede elétrica, riscos identificados, necessidade de poda, etc."
                         {...field}
                         value={field.value || ""}
@@ -979,12 +825,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
             <Button type="button" variant="outline" onClick={onClose} data-testid="button-cancelar">
               Cancelar
             </Button>
-            <Button 
-              type="submit" 
-              disabled={createInspectionMutation.isPending}
-              className="bg-primary-600 hover:bg-primary-700"
-              data-testid="button-salvar-inspecao"
-            >
+            <Button type="submit" disabled={createInspectionMutation.isPending} className="bg-primary-600 hover:bg-primary-700" data-testid="button-salvar-inspecao">
               <Save className="w-4 h-4 mr-2" />
               {createInspectionMutation.isPending ? "Salvando..." : "Salvar Inspeção"}
             </Button>
@@ -994,3 +835,4 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     </div>
   );
 }
+
