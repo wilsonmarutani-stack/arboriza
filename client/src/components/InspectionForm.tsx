@@ -325,6 +325,9 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       arvores: data.arvores
     };
     
+    // Debug: Log the tree data being submitted
+    console.log("Enviando árvores:", data.arvores.map(a => ({ lat: a.latitude, lng: a.longitude, endereco: a.endereco })));
+    
     createInspectionMutation.mutate(inspectionData);
   };
 

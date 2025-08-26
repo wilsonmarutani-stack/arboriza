@@ -36,9 +36,14 @@ export function ArvoresFieldArray({
   });
 
   const addArvore = () => {
+    // Use slightly randomized coordinates to avoid overlapping markers
+    const baseLatitude = -23.2017;
+    const baseLongitude = -47.2911;
+    const randomOffset = 0.001; // ~100 meters
+    
     const newArvore: ArvoreData = {
-      latitude: -23.2017, // Default coordinates (Itu region)
-      longitude: -47.2911,
+      latitude: baseLatitude + (Math.random() - 0.5) * randomOffset,
+      longitude: baseLongitude + (Math.random() - 0.5) * randomOffset,
       endereco: "",
       observacao: "",
       especieFinal: "",
