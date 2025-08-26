@@ -52,34 +52,49 @@ export function MapView({ onNewInspection, onEditInspection }: MapViewProps) {
   const { data: eas } = useQuery<Ea[]>({ queryKey: ["/api/refs/eas"] });
   const { data: municipios } = useQuery<Municipio[]>({ queryKey: ["/api/refs/municipios"] });
 
-  // Fetch inspections with filters
-  const { data: inspections = [], isLoading } = useQuery<InspecaoCompleta[]>({
-    queryKey: ["/api/inspecoes", filters],
+  // Fetch all trees (arvores) for the map
+  const { data: arvores = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/arvores"],
   });
 
-  // Filter inspections based on priority checkboxes
-  const filteredInspections = inspections.filter(inspection => 
-    filters.prioridade[inspection.prioridade as keyof typeof filters.prioridade]
-  );
+  // Fetch inspections for filters reference
+  const { data: inspections = [] } = useQuery<InspecaoCompleta[]>({
+    queryKey: ["/api/inspecoes"],
+  });
 
-  // Convert inspections to map markers
-  const mapMarkers = filteredInspections.map(inspection => ({
-    id: inspection.id,
-    lat: inspection.latitude,
-    lng: inspection.longitude,
-    priority: inspection.prioridade as "alta" | "media" | "baixa",
+  // Filter trees based on priority checkboxes and other filters
+  const filteredArvores = arvores.filter(arvore => {
+    // Check priority filter
+    const prioridadeMatch = filters.prioridade[arvore.inspecao?.prioridade as keyof typeof filters.prioridade];
+    
+    // Check EA filter
+    const eaMatch = !filters.eaId || arvore.inspecao?.eaId === filters.eaId;
+    
+    // Check municipality filter  
+    const municipioMatch = !filters.municipioId || arvore.inspecao?.municipioId === filters.municipioId;
+
+    return prioridadeMatch && eaMatch && municipioMatch;
+  });
+
+  // Convert trees to map markers
+  const mapMarkers = filteredArvores.map(arvore => ({
+    id: arvore.id,
+    lat: arvore.latitude,
+    lng: arvore.longitude,
+    priority: arvore.inspecao?.prioridade as "alta" | "media" | "baixa",
     popup: `
       <div class="p-2">
-        <h4 class="font-semibold">${inspection.especieFinal || "Espécie não identificada"}</h4>
-        <p class="text-sm text-gray-600">${inspection.municipio.nome} - ${inspection.ea.nome}</p>
-        <p class="text-sm text-gray-500">${inspection.alimentador.codigo}</p>
+        <h4 class="font-semibold">${arvore.especieFinal || "Espécie não identificada"}</h4>
+        <p class="text-sm text-gray-600">${arvore.municipio?.nome} - ${arvore.ea?.nome}</p>
+        <p class="text-sm text-gray-500">${arvore.alimentador?.codigo}</p>
+        <p class="text-sm text-gray-600">📍 ${arvore.endereco || 'Endereço não informado'}</p>
         <div class="mt-2">
           <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-            inspection.prioridade === 'alta' ? 'bg-red-100 text-red-800' :
-            inspection.prioridade === 'media' ? 'bg-amber-100 text-amber-800' :
+            arvore.inspecao?.prioridade === 'alta' ? 'bg-red-100 text-red-800' :
+            arvore.inspecao?.prioridade === 'media' ? 'bg-amber-100 text-amber-800' :
             'bg-green-100 text-green-800'
           }">
-            ${inspection.prioridade === 'alta' ? 'Alta' : inspection.prioridade === 'media' ? 'Média' : 'Baixa'} Prioridade
+            ${arvore.inspecao?.prioridade === 'alta' ? 'Alta' : arvore.inspecao?.prioridade === 'media' ? 'Média' : 'Baixa'} Prioridade
           </span>
         </div>
       </div>
@@ -123,10 +138,10 @@ export function MapView({ onNewInspection, onEditInspection }: MapViewProps) {
   };
 
   const currentStats = {
-    total: filteredInspections.length,
-    alta: filteredInspections.filter(i => i.prioridade === "alta").length,
-    media: filteredInspections.filter(i => i.prioridade === "media").length,
-    baixa: filteredInspections.filter(i => i.prioridade === "baixa").length,
+    total: filteredArvores.length,
+    alta: filteredArvores.filter(a => a.inspecao?.prioridade === "alta").length,
+    media: filteredArvores.filter(a => a.inspecao?.prioridade === "media").length,
+    baixa: filteredArvores.filter(a => a.inspecao?.prioridade === "baixa").length,
   };
 
   return (

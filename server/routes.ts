@@ -345,6 +345,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Árvores routes
+  app.get("/api/arvores", async (req, res) => {
+    try {
+      const arvores = await storage.getAllArvores();
+      res.json(arvores);
+    } catch (error) {
+      console.error("Erro ao buscar árvores:", error);
+      res.status(500).json({ error: "Erro ao buscar árvores" });
+    }
+  });
+
   app.get("/api/inspecoes/:id/arvores", async (req, res) => {
     try {
       const arvores = await storage.getArvoresByInspecao(req.params.id);

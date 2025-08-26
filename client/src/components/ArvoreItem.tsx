@@ -40,6 +40,14 @@ export function ArvoreItem({
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [showMap, setShowMap] = useState(false);
+  const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude, lng: arvore.longitude });
+
+  // Sincronizar coordenadas temporárias quando o mapa abre
+  useEffect(() => {
+    if (showMap) {
+      setTempCoords({ lat: arvore.latitude, lng: arvore.longitude });
+    }
+  }, [showMap, arvore.latitude, arvore.longitude]);
 
   const handleLocationFromGPS = () => {
     if (navigator.geolocation) {
@@ -70,8 +78,14 @@ export function ArvoreItem({
   };
 
   const handleMarkerDrag = (lat: number, lng: number) => {
-    onUpdate(index, { latitude: lat, longitude: lng });
-    fetchAddressForCoordinates(lat, lng);
+    setTempCoords({ lat, lng });
+    // Não atualiza as coordenadas reais imediatamente para evitar re-renderização do dialog
+  };
+
+  const applyTempCoords = () => {
+    onUpdate(index, { latitude: tempCoords.lat, longitude: tempCoords.lng });
+    fetchAddressForCoordinates(tempCoords.lat, tempCoords.lng);
+    setShowMap(false);
   };
 
   const fetchAddressForCoordinates = async (lat: number, lng: number) => {
@@ -177,7 +191,14 @@ export function ArvoreItem({
               <MapPin className="w-4 h-4 mr-2" />
               Usar GPS
             </Button>
-            <Dialog open={showMap} onOpenChange={setShowMap}>
+            <Dialog open={showMap} onOpenChange={(open) => {
+              // Só permite fechar se explicitamente solicitado
+              if (!open) {
+                setShowMap(false);
+              } else {
+                setShowMap(true);
+              }
+            }}>
               <DialogTrigger asChild>
                 <Button
                   type="button"
@@ -215,23 +236,34 @@ export function ArvoreItem({
                   </div>
                   <MapComponent
                     height="400px"
-                    center={[arvore.latitude, arvore.longitude]}
+                    center={[tempCoords.lat, tempCoords.lng]}
                     draggableMarker={{
-                      lat: arvore.latitude,
-                      lng: arvore.longitude,
+                      lat: tempCoords.lat,
+                      lng: tempCoords.lng,
                       onDrag: handleMarkerDrag,
                     }}
                   />
                   <p className="text-sm text-gray-600">
-                    Arraste o marcador para ajustar a posição exata da árvore ou digite as coordenadas nos campos acima.
+                    Arraste o marcador para ajustar a posição exata da árvore.
                   </p>
-                  <div className="flex justify-end pt-4">
+                  <div className="flex justify-end gap-2 pt-4">
                     <Button
                       type="button"
-                      onClick={() => setShowMap(false)}
-                      data-testid={`button-close-map-${index}`}
+                      variant="outline"
+                      onClick={() => {
+                        setTempCoords({ lat: arvore.latitude, lng: arvore.longitude });
+                        setShowMap(false);
+                      }}
+                      data-testid={`button-cancel-map-${index}`}
                     >
-                      Fechar
+                      Cancelar
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={applyTempCoords}
+                      data-testid={`button-apply-map-${index}`}
+                    >
+                      Aplicar
                     </Button>
                   </div>
                 </div>

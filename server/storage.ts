@@ -61,6 +61,7 @@ export interface IStorage {
   }>;
 
   // Árvores
+  getAllArvores(): Promise<any[]>;
   getArvoresByInspecao(inspecaoId: string): Promise<ArvoreCompleta[]>;
   createArvore(arvore: InsertArvore): Promise<Arvore>;
   updateArvore(id: string, arvore: Partial<InsertArvore>): Promise<Arvore>;
@@ -302,6 +303,37 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Árvores
+  async getAllArvores(): Promise<any[]> {
+    const trees = await db.select().from(arvores);
+    
+    const treesWithInspectionInfo = await Promise.all(
+      trees.map(async (tree) => {
+        // Get inspection details
+        const [inspecao] = await db
+          .select()
+          .from(inspecoes)
+          .leftJoin(eas, eq(inspecoes.eaId, eas.id))
+          .leftJoin(municipios, eq(inspecoes.municipioId, municipios.id))
+          .leftJoin(alimentadores, eq(inspecoes.alimentadorId, alimentadores.id))
+          .where(eq(inspecoes.id, tree.inspecaoId));
+        
+        // Get photos
+        const fotos = await this.getFotosByArvore(tree.id);
+        
+        return {
+          ...tree,
+          inspecao: inspecao?.inspecoes,
+          ea: inspecao?.eas,
+          municipio: inspecao?.municipios,
+          alimentador: inspecao?.alimentadores,
+          fotos
+        };
+      })
+    );
+
+    return treesWithInspectionInfo;
+  }
+
   async getArvoresByInspecao(inspecaoId: string): Promise<ArvoreCompleta[]> {
     const trees = await db.select().from(arvores).where(eq(arvores.inspecaoId, inspecaoId));
     
