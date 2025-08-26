@@ -31,12 +31,14 @@ interface TableFilters {
   prioridade?: string;
   dataInicio?: string;
   dataFim?: string;
+  numeroNota?: string;
 }
 
 export function InspectionsTable({ onNewInspection, onEditInspection }: InspectionsTableProps) {
   const [filters, setFilters] = useState<TableFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
+  const [searchNota, setSearchNota] = useState("");
   const itemsPerPage = 10;
 
   // Fetch reference data
@@ -116,14 +118,26 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
           <p className="text-gray-600 mt-1">Gerencie todas as inspeções registradas</p>
         </div>
         <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={() => setShowFilters(!showFilters)}
-            data-testid="button-toggle-filters"
-          >
-            <Filter className="w-4 h-4 mr-2" />
-            Filtros
-          </Button>
+          <div className="flex space-x-2">
+            <Input
+              placeholder="Buscar por número da nota..."
+              value={searchNota}
+              onChange={(e) => {
+                setSearchNota(e.target.value);
+                setFilters(prev => ({ ...prev, numeroNota: e.target.value || undefined }));
+              }}
+              className="w-64"
+              data-testid="input-search-nota"
+            />
+            <Button 
+              variant="outline" 
+              onClick={() => setShowFilters(!showFilters)}
+              data-testid="button-toggle-filters"
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filtros
+            </Button>
+          </div>
           <div className="flex space-x-2">
             <Button 
               variant="outline" 
@@ -243,7 +257,14 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
             </div>
             
             <div className="mt-4 flex justify-between">
-              <Button variant="ghost" onClick={clearFilters} data-testid="button-limpar-filtros">
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  clearFilters();
+                  setSearchNota("");
+                }} 
+                data-testid="button-limpar-filtros"
+              >
                 Limpar filtros
               </Button>
               <p className="text-sm text-gray-500">
@@ -266,19 +287,19 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
             <div className="p-8 text-center text-gray-500">
               <FileText className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p>Nenhuma inspeção encontrada</p>
-              <Button onClick={onNewInspection} className="mt-4" data-testid="button-primeira-inspecao-table">
-                Criar primeira inspeção
-              </Button>
+              <p className="text-sm text-gray-400 mt-2">
+                {Object.keys(filters).some(key => filters[key as keyof TableFilters]) ? 'Tente ajustar os filtros ou limpar a busca' : 'Use o botão "Nova Inspeção" para criar a primeira inspeção'}
+              </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Número da Nota</TableHead>
                     <TableHead>Data/EA</TableHead>
                     <TableHead>Localização</TableHead>
                     <TableHead>Espécie</TableHead>
-                    <TableHead>Alimentador</TableHead>
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -286,6 +307,18 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                 <TableBody>
                   {inspections.map((inspecao) => (
                     <TableRow key={inspecao.id} className="hover:bg-gray-50" data-testid={`row-inspection-${inspecao.id}`}>
+                      <TableCell>
+                        <div>
+                          <div className="text-sm font-medium text-gray-900 font-mono">
+                            {inspecao.numeroNota}
+                          </div>
+                          {inspecao.numeroOperativo && (
+                            <div className="text-xs text-gray-500 font-mono">
+                              {inspecao.numeroOperativo}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <div>
                           <div className="text-sm font-medium text-gray-900">
@@ -315,16 +348,6 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                               Confiança: {inspecao.especieConfiancaMedia.toFixed(0)}%
                             </div>
                           )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="text-sm font-medium text-gray-900 font-mono">
-                            {inspecao.alimentador.codigo}
-                          </div>
-                          <div className="text-sm text-gray-500 truncate max-w-xs">
-                            {inspecao.subestacao.nome}
-                          </div>
                         </div>
                       </TableCell>
                       <TableCell>

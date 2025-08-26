@@ -38,6 +38,7 @@ export interface IStorage {
     prioridade?: string;
     dataInicio?: Date;
     dataFim?: Date;
+    numeroNota?: string;
     limit?: number;
     offset?: number;
   }): Promise<InspecaoCompleta[]>;
@@ -125,6 +126,7 @@ export class DatabaseStorage implements IStorage {
     prioridade?: string;
     dataInicio?: Date;
     dataFim?: Date;
+    numeroNota?: string;
     limit?: number;
     offset?: number;
   }): Promise<InspecaoCompleta[]> {
@@ -135,6 +137,7 @@ export class DatabaseStorage implements IStorage {
     if (filters?.prioridade) conditions.push(eq(inspecoes.prioridade, filters.prioridade));
     if (filters?.dataInicio) conditions.push(gte(inspecoes.dataInspecao, filters.dataInicio));
     if (filters?.dataFim) conditions.push(lte(inspecoes.dataInspecao, filters.dataFim));
+    if (filters?.numeroNota) conditions.push(sql`${inspecoes.numeroNota} ILIKE ${'%' + filters.numeroNota + '%'}`);
 
     let queryBuilder = db
       .select({

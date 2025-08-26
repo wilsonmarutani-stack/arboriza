@@ -122,6 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         prioridade: req.query.prioridade as string,
         dataInicio: req.query.data_inicio ? new Date(req.query.data_inicio as string) : undefined,
         dataFim: req.query.data_fim ? new Date(req.query.data_fim as string) : undefined,
+        numeroNota: req.query.numeroNota as string,
         limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
         offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
       };
