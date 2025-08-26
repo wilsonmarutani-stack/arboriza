@@ -28,6 +28,8 @@ interface ArvoreItemProps {
   onUpdate: (index: number, updates: Partial<ArvoreItemProps['arvore']>) => void;
   onRemove: (index: number) => void;
   onPhotoAdded?: (index: number, photoUrl: string) => void;
+  form?: any; // React Hook Form instance
+  fieldName?: string; // Field name prefix for form fields
 }
 
 export function ArvoreItem({ 
@@ -35,7 +37,9 @@ export function ArvoreItem({
   arvore, 
   onUpdate, 
   onRemove,
-  onPhotoAdded
+  onPhotoAdded,
+  form,
+  fieldName = "arvores"
 }: ArvoreItemProps) {
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
@@ -178,9 +182,12 @@ export function ArvoreItem({
               <Input
                 type="number"
                 step="any"
-                value={arvore.latitude || -23.2017}
+                value={form ? form.watch(`${fieldName}.${index}.latitude`) || -23.2017 : (arvore.latitude || -23.2017)}
                 onChange={(e) => {
                   const newLat = parseFloat(e.target.value) || -23.2017;
+                  if (form) {
+                    form.setValue(`${fieldName}.${index}.latitude`, newLat);
+                  }
                   onUpdate(index, { latitude: newLat });
                 }}
                 data-testid={`input-latitude-${index}`}
@@ -191,9 +198,12 @@ export function ArvoreItem({
               <Input
                 type="number"
                 step="any"
-                value={arvore.longitude || -47.2911}
+                value={form ? form.watch(`${fieldName}.${index}.longitude`) || -47.2911 : (arvore.longitude || -47.2911)}
                 onChange={(e) => {
                   const newLng = parseFloat(e.target.value) || -47.2911;
+                  if (form) {
+                    form.setValue(`${fieldName}.${index}.longitude`, newLng);
+                  }
                   onUpdate(index, { longitude: newLng });
                 }}
                 data-testid={`input-longitude-${index}`}

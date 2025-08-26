@@ -56,31 +56,18 @@ export function ArvoresFieldArray({
   };
 
   const updateArvore = (index: number, updates: Partial<ArvoreData>) => {
-    const currentArvore = fields[index] as unknown as ArvoreData;
-    const newArvore = { ...currentArvore, ...updates };
-    
-    console.log(`updateArvore chamado:`, { index, updates, currentArvore, newArvore });
-    
-    // Força atualização do form para garantir que os valores sejam persistidos
-    if (updates.latitude !== undefined || updates.longitude !== undefined) {
-      form.setValue(`arvores.${index}.latitude`, newArvore.latitude);
-      form.setValue(`arvores.${index}.longitude`, newArvore.longitude);
-      
-      console.log(`Form setValue executado - lat: ${newArvore.latitude}, lng: ${newArvore.longitude}`);
-      
-      // Se endereço for passado, também atualiza
-      if (updates.endereco !== undefined) {
-        form.setValue(`arvores.${index}.endereco`, updates.endereco);
+    // Atualizar cada campo individualmente no form
+    Object.keys(updates).forEach(key => {
+      const value = updates[key as keyof ArvoreData];
+      if (value !== undefined) {
+        form.setValue(`${name}.${index}.${key}` as any, value);
       }
-      
-      // Verificar o que está no form após setValue
-      setTimeout(() => {
-        const formData = form.getValues();
-        console.log(`Valores do form após setValue:`, formData.arvores[index]);
-      }, 50);
-    }
+    });
     
-    update(index, newArvore);
+    console.log(`updateArvore chamado:`, { index, updates });
+    
+    // Força re-renderização
+    update(index, { ...fields[index], ...updates } as any);
   };
 
   return (
@@ -119,6 +106,8 @@ export function ArvoresFieldArray({
               onUpdate={updateArvore}
               onRemove={remove}
               onPhotoAdded={onPhotoAdded}
+              form={form}
+              fieldName={name}
             />
           ))
         )}
