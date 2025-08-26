@@ -92,7 +92,11 @@ export function MapView({ onNewInspection, onEditInspection }: MapViewProps) {
         alta: true,
         media: true,
         baixa: true
-      }
+      },
+      eaId: undefined,
+      municipioId: undefined,
+      dataInicio: undefined,
+      dataFim: undefined
     });
   };
 
@@ -210,14 +214,14 @@ export function MapView({ onNewInspection, onEditInspection }: MapViewProps) {
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2">EA</Label>
               <Select 
-                value={filters.eaId || ""} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, eaId: value || undefined }))}
+                value={filters.eaId || "all"} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, eaId: value === "all" ? undefined : value }))}
               >
                 <SelectTrigger className="w-full" data-testid="filter-map-ea">
                   <SelectValue placeholder="Todas as EAs" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as EAs</SelectItem>
+                  <SelectItem value="all">Todas as EAs</SelectItem>
                   {eas?.map((ea) => (
                     <SelectItem key={ea.id} value={ea.id}>
                       {ea.nome} ({inspections.filter(i => i.eaId === ea.id).length})
@@ -230,14 +234,14 @@ export function MapView({ onNewInspection, onEditInspection }: MapViewProps) {
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2">Município</Label>
               <Select 
-                value={filters.municipioId || ""} 
-                onValueChange={(value) => setFilters(prev => ({ ...prev, municipioId: value || undefined }))}
+                value={filters.municipioId || "all"} 
+                onValueChange={(value) => setFilters(prev => ({ ...prev, municipioId: value === "all" ? undefined : value }))}
               >
                 <SelectTrigger className="w-full" data-testid="filter-map-municipio">
                   <SelectValue placeholder="Todos os municípios" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os municípios</SelectItem>
+                  <SelectItem value="all">Todos os municípios</SelectItem>
                   {municipios?.map((municipio) => (
                     <SelectItem key={municipio.id} value={municipio.id}>
                       {municipio.nome}
