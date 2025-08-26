@@ -74,6 +74,17 @@ export function ArvoresFieldArray({
       if (updates.endereco !== undefined) {
         form.setValue(`arvores.${index}.endereco`, updates.endereco);
       }
+      
+      // Verifica se foi salvo corretamente
+      setTimeout(() => {
+        const formValues = form.getValues();
+        console.log(`Verificação após update árvore ${index}:`, {
+          formLat: formValues.arvores[index]?.latitude,
+          formLng: formValues.arvores[index]?.longitude,
+          expectedLat: newArvore.latitude,
+          expectedLng: newArvore.longitude
+        });
+      }, 100);
     }
     
     update(index, newArvore);
