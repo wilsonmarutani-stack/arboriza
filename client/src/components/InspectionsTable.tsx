@@ -184,14 +184,14 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                   EA
                 </Label>
                 <Select 
-                  value={filters.eaId || ""} 
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, eaId: value || undefined }))}
+                  value={filters.eaId || "all"} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, eaId: value === "all" ? undefined : value }))}
                 >
                   <SelectTrigger data-testid="filter-ea">
                     <SelectValue placeholder="Todas as EAs" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as EAs</SelectItem>
+                    <SelectItem value="all">Todas as EAs</SelectItem>
                     {eas?.map((ea) => (
                       <SelectItem key={ea.id} value={ea.id}>
                         {ea.nome}
@@ -206,14 +206,14 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                   Município
                 </Label>
                 <Select 
-                  value={filters.municipioId || ""} 
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, municipioId: value || undefined }))}
+                  value={filters.municipioId || "all"} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, municipioId: value === "all" ? undefined : value }))}
                 >
                   <SelectTrigger data-testid="filter-municipio">
                     <SelectValue placeholder="Todos os municípios" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todos os municípios</SelectItem>
+                    <SelectItem value="all">Todos os municípios</SelectItem>
                     {municipios?.map((municipio) => (
                       <SelectItem key={municipio.id} value={municipio.id}>
                         {municipio.nome}
@@ -228,14 +228,14 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                   Prioridade
                 </Label>
                 <Select 
-                  value={filters.prioridade || ""} 
-                  onValueChange={(value) => setFilters(prev => ({ ...prev, prioridade: value || undefined }))}
+                  value={filters.prioridade || "all"} 
+                  onValueChange={(value) => setFilters(prev => ({ ...prev, prioridade: value === "all" ? undefined : value }))}
                 >
                   <SelectTrigger data-testid="filter-prioridade">
                     <SelectValue placeholder="Todas as prioridades" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Todas as prioridades</SelectItem>
+                    <SelectItem value="all">Todas as prioridades</SelectItem>
                     <SelectItem value="alta">Alta</SelectItem>
                     <SelectItem value="media">Média</SelectItem>
                     <SelectItem value="baixa">Baixa</SelectItem>
