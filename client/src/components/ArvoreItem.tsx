@@ -225,6 +225,15 @@ export function ArvoreItem({
                   <p className="text-sm text-gray-600">
                     Arraste o marcador para ajustar a posição exata da árvore ou digite as coordenadas nos campos acima.
                   </p>
+                  <div className="flex justify-end pt-4">
+                    <Button
+                      type="button"
+                      onClick={() => setShowMap(false)}
+                      data-testid={`button-close-map-${index}`}
+                    >
+                      Fechar
+                    </Button>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
