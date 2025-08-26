@@ -5,7 +5,9 @@ import {
   type Alimentador, type InsertAlimentador,
   type Inspecao, type InsertInspecao, type InspecaoCompleta,
   type EspecieCandidato, type InsertEspecieCandidato,
-  eas, municipios, subestacoes, alimentadores, inspecoes, especieCandidatos
+  type Arvore, type InsertArvore, type ArvoreCompleta,
+  type ArvoreFoto, type InsertArvoreFoto,
+  eas, municipios, subestacoes, alimentadores, inspecoes, especieCandidatos, arvores, arvoreFotos
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { db } from "./db";
@@ -57,6 +59,17 @@ export interface IStorage {
     lowPriority: number;
     byMunicipality: { municipio: string; count: number }[];
   }>;
+
+  // Árvores
+  getArvoresByInspecao(inspecaoId: string): Promise<ArvoreCompleta[]>;
+  createArvore(arvore: InsertArvore): Promise<Arvore>;
+  updateArvore(id: string, arvore: Partial<InsertArvore>): Promise<Arvore>;
+  deleteArvore(id: string): Promise<void>;
+
+  // Fotos de árvores
+  getFotosByArvore(arvoreId: string): Promise<ArvoreFoto[]>;
+  createArvoreFotos(fotos: InsertArvoreFoto[]): Promise<ArvoreFoto[]>;
+  deleteArvoreFoto(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -286,6 +299,63 @@ export class DatabaseStorage implements IStorage {
         count
       }))
     };
+  }
+
+  // Árvores
+  async getArvoresByInspecao(inspecaoId: string): Promise<ArvoreCompleta[]> {
+    const trees = await db.select().from(arvores).where(eq(arvores.inspecaoId, inspecaoId));
+    
+    const treesWithPhotos = await Promise.all(
+      trees.map(async (tree) => {
+        const fotos = await this.getFotosByArvore(tree.id);
+        return {
+          ...tree,
+          fotos
+        };
+      })
+    );
+
+    return treesWithPhotos;
+  }
+
+  async createArvore(arvore: InsertArvore): Promise<Arvore> {
+    const [newArvore] = await db.insert(arvores).values(arvore).returning();
+    return newArvore;
+  }
+
+  async updateArvore(id: string, arvore: Partial<InsertArvore>): Promise<Arvore> {
+    const [updated] = await db
+      .update(arvores)
+      .set(arvore)
+      .where(eq(arvores.id, id))
+      .returning();
+
+    if (!updated) throw new Error("Árvore não encontrada");
+    return updated;
+  }
+
+  async deleteArvore(id: string): Promise<void> {
+    // Delete photos first
+    await db.delete(arvoreFotos).where(eq(arvoreFotos.arvoreId, id));
+    // Delete the tree
+    await db.delete(arvores).where(eq(arvores.id, id));
+  }
+
+  // Fotos de árvores
+  async getFotosByArvore(arvoreId: string): Promise<ArvoreFoto[]> {
+    return await db
+      .select()
+      .from(arvoreFotos)
+      .where(eq(arvoreFotos.arvoreId, arvoreId));
+  }
+
+  async createArvoreFotos(fotos: InsertArvoreFoto[]): Promise<ArvoreFoto[]> {
+    if (fotos.length === 0) return [];
+    return await db.insert(arvoreFotos).values(fotos).returning();
+  }
+
+  async deleteArvoreFoto(id: string): Promise<void> {
+    await db.delete(arvoreFotos).where(eq(arvoreFotos.id, id));
   }
 }
 

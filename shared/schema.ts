@@ -65,6 +65,27 @@ export const especieCandidatos = pgTable("especie_candidatos", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+// Arvores table - multiple trees per inspection
+export const arvores = pgTable("arvores", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  inspecaoId: varchar("inspecao_id").references(() => inspecoes.id).notNull(),
+  latitude: real("latitude").notNull(),
+  longitude: real("longitude").notNull(),
+  endereco: text("endereco"),
+  observacao: text("observacao"),
+  especieFinal: text("especie_final"),
+  especieConfiancaMedia: real("especie_confianca_media"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Tree photos table - multiple photos per tree
+export const arvoreFotos = pgTable("arvore_fotos", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  arvoreId: varchar("arvore_id").references(() => arvores.id).notNull(),
+  url: text("url").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Insert schemas
 export const insertEaSchema = createInsertSchema(eas).pick({
   nome: true,
@@ -116,6 +137,24 @@ export const insertEspecieCandidatoSchema = createInsertSchema(especieCandidatos
   confianca: true,
 });
 
+export const insertArvoreSchema = createInsertSchema(arvores).pick({
+  inspecaoId: true,
+  latitude: true,
+  longitude: true,
+  endereco: true,
+  observacao: true,
+  especieFinal: true,
+  especieConfiancaMedia: true,
+}).extend({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+});
+
+export const insertArvoreFotoSchema = createInsertSchema(arvoreFotos).pick({
+  arvoreId: true,
+  url: true,
+});
+
 // Types
 export type Ea = typeof eas.$inferSelect;
 export type InsertEa = z.infer<typeof insertEaSchema>;
@@ -135,6 +174,12 @@ export type InsertInspecao = z.infer<typeof insertInspecaoSchema>;
 export type EspecieCandidato = typeof especieCandidatos.$inferSelect;
 export type InsertEspecieCandidato = z.infer<typeof insertEspecieCandidatoSchema>;
 
+export type Arvore = typeof arvores.$inferSelect;
+export type InsertArvore = z.infer<typeof insertArvoreSchema>;
+
+export type ArvoreFoto = typeof arvoreFotos.$inferSelect;
+export type InsertArvoreFoto = z.infer<typeof insertArvoreFotoSchema>;
+
 // Extended types for joins
 export type InspecaoCompleta = Inspecao & {
   ea: Ea;
@@ -142,4 +187,9 @@ export type InspecaoCompleta = Inspecao & {
   alimentador: Alimentador;
   subestacao: Subestacao;
   candidatos: EspecieCandidato[];
+  arvores?: ArvoreCompleta[];
+};
+
+export type ArvoreCompleta = Arvore & {
+  fotos: ArvoreFoto[];
 };

@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 // import { identifyTreeSpecies } from "./openaiService"; // Removed - using PlantNet instead
 import { exportService } from "./exportService";
-import { insertInspecaoSchema, insertEspecieCandidatoSchema } from "@shared/schema";
+import { insertInspecaoSchema, insertEspecieCandidatoSchema, insertArvoreSchema } from "@shared/schema";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -160,7 +160,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const validatedData = insertInspecaoSchema.parse(inspecaoData);
       const inspecao = await storage.createInspecao(validatedData);
 
-      res.status(201).json(inspecao);
+      // Handle multiple trees if provided
+      if (req.body.items) {
+        try {
+          const items = JSON.parse(req.body.items);
+          for (const item of items) {
+            const arvoreData = {
+              inspecaoId: inspecao.id,
+              latitude: item.latitude,
+              longitude: item.longitude,
+              endereco: item.endereco,
+              observacao: item.observacao,
+              especieFinal: item.especieFinal,
+              especieConfiancaMedia: item.especieConfiancaMedia,
+            };
+            
+            const validatedArvore = insertArvoreSchema.parse(arvoreData);
+            const arvore = await storage.createArvore(validatedArvore);
+            
+            // Create photos for this tree
+            if (item.fotos && item.fotos.length > 0) {
+              const fotosData = item.fotos.map((url: string) => ({
+                arvoreId: arvore.id,
+                url
+              }));
+              await storage.createArvoreFotos(fotosData);
+            }
+          }
+        } catch (itemsError) {
+          console.error("Erro ao processar árvores:", itemsError);
+        }
+      }
+
+      res.status(201).json({ id: inspecao.id });
     } catch (error) {
       console.error("Erro ao criar inspeção:", error);
       res.status(400).json({ error: "Dados inválidos para criação da inspeção" });
@@ -309,6 +341,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Erro ao buscar estatísticas" });
+    }
+  });
+
+  // Árvores routes
+  app.get("/api/inspecoes/:id/arvores", async (req, res) => {
+    try {
+      const arvores = await storage.getArvoresByInspecao(req.params.id);
+      res.json(arvores);
+    } catch (error) {
+      console.error("Erro ao buscar árvores:", error);
+      res.status(500).json({ error: "Erro ao buscar árvores" });
+    }
+  });
+
+  app.post("/api/inspecoes/:id/arvores", async (req, res) => {
+    try {
+      const arvoreData = { ...req.body, inspecaoId: req.params.id };
+      const validatedArvore = insertArvoreSchema.parse(arvoreData);
+      const arvore = await storage.createArvore(validatedArvore);
+      
+      // Create photos if provided
+      if (req.body.fotos && req.body.fotos.length > 0) {
+        const fotosData = req.body.fotos.map((url: string) => ({
+          arvoreId: arvore.id,
+          url
+        }));
+        await storage.createArvoreFotos(fotosData);
+      }
+      
+      res.json(arvore);
+    } catch (error) {
+      console.error("Erro ao criar árvore:", error);
+      res.status(400).json({ error: "Erro ao criar árvore" });
+    }
+  });
+
+  app.put("/api/inspecoes/:id/arvores/:arvoreId", async (req, res) => {
+    try {
+      const validatedArvore = insertArvoreSchema.partial().parse(req.body);
+      const arvore = await storage.updateArvore(req.params.arvoreId, validatedArvore);
+      res.json(arvore);
+    } catch (error) {
+      console.error("Erro ao atualizar árvore:", error);
+      res.status(400).json({ error: "Erro ao atualizar árvore" });
+    }
+  });
+
+  app.delete("/api/inspecoes/:id/arvores/:arvoreId", async (req, res) => {
+    try {
+      await storage.deleteArvore(req.params.arvoreId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao deletar árvore:", error);
+      res.status(500).json({ error: "Erro ao deletar árvore" });
+    }
+  });
+
+  app.post("/api/arvores/:arvoreId/fotos", async (req, res) => {
+    try {
+      const { urls } = req.body;
+      const fotosData = urls.map((url: string) => ({
+        arvoreId: req.params.arvoreId,
+        url
+      }));
+      const fotos = await storage.createArvoreFotos(fotosData);
+      res.json(fotos);
+    } catch (error) {
+      console.error("Erro ao adicionar fotos:", error);
+      res.status(400).json({ error: "Erro ao adicionar fotos" });
+    }
+  });
+
+  app.delete("/api/arvores/:arvoreId/fotos/:fotoId", async (req, res) => {
+    try {
+      await storage.deleteArvoreFoto(req.params.fotoId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Erro ao deletar foto:", error);
+      res.status(500).json({ error: "Erro ao deletar foto" });
     }
   });
 

@@ -20,6 +20,7 @@ import { X, Camera, Brain, Save, MapPin } from "lucide-react";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { UploadResult } from "@uppy/core";
+import { ArvoresFieldArray } from "./ArvoresFieldArray";
 
 interface SpeciesCandidate {
   nome: string;
@@ -32,8 +33,22 @@ interface SpeciesIdentificationResult {
   fonte?: string;
 }
 
+const arvoreSchema = z.object({
+  latitude: z.number().min(-90).max(90),
+  longitude: z.number().min(-180).max(180),
+  endereco: z.string().optional(),
+  observacao: z.string().optional(),
+  especieFinal: z.string().optional(),
+  especieConfiancaMedia: z.number().optional(),
+  fotos: z.array(z.object({
+    id: z.string().optional(),
+    url: z.string()
+  })).default([])
+});
+
 const formSchema = insertInspecaoSchema.extend({
   foto: z.any().optional(),
+  arvores: z.array(arvoreSchema).min(1, "Pelo menos uma árvore deve ser adicionada")
 });
 type FormData = z.infer<typeof formSchema>;
 
@@ -71,6 +86,15 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       endereco: "",
       observacoes: "",
       especieFinal: "",
+      arvores: [{
+        latitude: coordinates.lat,
+        longitude: coordinates.lng,
+        endereco: "",
+        observacao: "",
+        especieFinal: "",
+        especieConfiancaMedia: undefined,
+        fotos: []
+      }]
     },
   });
 
@@ -284,7 +308,16 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
   const onSubmit = (data: FormData) => {
     if (uploadedImageUrl) data.fotoUrl = uploadedImageUrl;
-    createInspectionMutation.mutate({ ...data, latitude: coordinates.lat, longitude: coordinates.lng });
+    
+    // Prepare the data for the new structure with multiple trees
+    const inspectionData = {
+      ...data,
+      latitude: coordinates.lat,
+      longitude: coordinates.lng,
+      arvores: data.arvores
+    };
+    
+    createInspectionMutation.mutate(inspectionData);
   };
 
   return (
@@ -590,6 +623,26 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
               />
             </CardContent>
           </Card>
+
+          {/* Trees Field Array - Multiple trees per inspection */}
+          <ArvoresFieldArray
+            control={form.control}
+            name="arvores"
+            onMapClick={(index) => {
+              // TODO: Implement map interaction for specific tree
+              toast({
+                title: "Em desenvolvimento",
+                description: "Funcionalidade de mapa para árvores específicas em desenvolvimento"
+              });
+            }}
+            onIdentifySpecies={(index) => {
+              // TODO: Implement species identification for specific tree
+              toast({
+                title: "Em desenvolvimento", 
+                description: "Identificação de espécie por árvore em desenvolvimento"
+              });
+            }}
+          />
 
           {/* Tree Information & Photo */}
           <Card>

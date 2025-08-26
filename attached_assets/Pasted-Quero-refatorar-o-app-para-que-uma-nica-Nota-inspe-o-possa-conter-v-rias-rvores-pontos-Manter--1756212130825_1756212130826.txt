@@ -1,0 +1,190 @@
+Quero refatorar o app para que uma única Nota (inspeção) possa conter várias árvores/pontos. Manter as seções que já existem (“Informações Básicas” e “Localização” com EA/Município/Alimentador/Subestação) como atributos da Nota. Adicionar uma nova seção “Árvores desta Nota” com lista dinâmica de pontos. Requisitos detalhados:
+
+1) Modelagem de dados (Postgres/Neon)
+
+Criar as tabelas filhas, sem quebrar as existentes:
+
+-- Tabela de pontos/árvores (filha da inspeção/nota)
+create table if not exists arvores (
+  id uuid primary key default gen_random_uuid(),
+  inspecao_id uuid not null references inspecoes(id) on delete cascade,
+  latitude double precision not null,
+  longitude double precision not null,
+  endereco text,
+  observacao text,
+  especie_final text,
+  especie_confianca_media numeric,
+  created_at timestamptz default now()
+);
+
+-- Fotos (várias) por árvore
+create table if not exists arvore_fotos (
+  id uuid primary key default gen_random_uuid(),
+  arvore_id uuid not null references arvores(id) on delete cascade,
+  url text not null,
+  created_at timestamptz default now()
+);
+
+create index if not exists idx_arvores_inspecao on arvores(inspecao_id);
+create index if not exists idx_arvore_fotos_arvore on arvore_fotos(arvore_id);
+
+
+Observação: não remova latitude/longitude/fotoUrl da tabela inspecoes agora; mantenha por compatibilidade. Em novas criações, use apenas arvores/arvore_fotos.
+
+2) Tipos compartilhados
+
+Em @shared/schema (ou arquivo equivalente), adicionar:
+
+export interface ArvoreFoto { id: string; arvoreId: string; url: string; createdAt: string; }
+export interface Arvore {
+  id: string;
+  inspecaoId: string;
+  latitude: number;
+  longitude: number;
+  endereco?: string | null;
+  observacao?: string | null;
+  especieFinal?: string | null;
+  especieConfiancaMedia?: number | null;
+  fotos: ArvoreFoto[];
+}
+
+3) Backend (Node/Express atual)
+
+Criar/ajustar rotas sem quebrar o front existente:
+
+POST /api/inspecoes: continuar aceitando FormData da Nota, e agora aceitar um campo items contendo JSON string com um array de pontos:
+
+items: [
+  {
+    "latitude": -23.2,
+    "longitude": -47.29,
+    "endereco": "…",
+    "observacao": "…",
+    "fotos": ["https://…/foto1.jpg", "https://…/foto2.jpg"]
+  }
+]
+
+
+Passos da rota:
+
+Criar a inspeção (Nota) como hoje e obter inspecao_id.
+
+Se items vier, inserir em lote na tabela arvores (retornar id de cada).
+
+Para cada item, inserir as URLs em arvore_fotos.
+
+Responder { id: inspecao_id }.
+
+Novas rotas de árvore:
+
+GET /api/inspecoes/:id/arvores → lista as árvores + fotos[] da nota.
+
+POST /api/inspecoes/:id/arvores → adiciona um ponto (corpo JSON).
+
+PUT /api/inspecoes/:id/arvores/:arvoreId → atualiza coords/endereço/observação/espécie/confiança.
+
+DELETE /api/inspecoes/:id/arvores/:arvoreId → remove o ponto.
+
+POST /api/arvores/:arvoreId/fotos → recebe { urls: string[] } e cria em arvore_fotos.
+
+(Opcional) DELETE /api/arvores/:arvoreId/fotos/:fotoId.
+
+IA (Pl@ntNet): manter POST /api/ia/identificar-especie. Ele poderá receber { imageUrl, organs, lang } e atualizar a árvore se vier arvoreId:
+
+Se arvoreId estiver no corpo, após obter a sugestão, atualizar arvores.especie_final e especie_confianca_media. Retornar o JSON como hoje.
+
+Storage: padronizar chave de upload para arvores/{inspecao_id}/{arvore_id}/{timestamp}.jpg. Reaproveitar endpoint/serviço de upload atual.
+
+4) Frontend – Formulário (React + RHF)
+
+Manter as seções já existentes intactas. Abaixo delas, criar a nova seção “Árvores desta Nota” com lista dinâmica usando useFieldArray:
+
+Botão “Adicionar árvore (+)” que cria um item com:
+
+latitude / longitude (inputs numéricos)
+
+Botão “Usar GPS” (preenche estes campos do item)
+
+Input Endereço (preenchido por reverse geocode opcional)
+
+Observação (texto curto)
+
+Uploader de fotos (pode anexar múltiplas; renderizar miniaturas e permitir remover)
+
+Botão “Ajustar no mapa”: abrir Dialog com MapComponent e marker arrastável; ao confirmar, gravar lat/lng no item.
+
+Botão “Identificar espécie (IA)”: se houver ao menos 1 foto, chamar /api/ia/identificar-especie e, em sucesso, preencher especieFinal e especieConfiancaMedia do item.
+
+Botão Remover (exclui o item da lista).
+
+Submit do formulário:
+
+Enviar a Nota como hoje via FormData.
+
+No mesmo FormData adicionar items = JSON.stringify(arrayDeItens), onde cada item carrega suas fotos[] (URLs já retornadas pelo uploader).
+
+Validações:
+
+Exigir pelo menos 1 árvore antes de salvar.
+
+Para cada item: latitude e longitude obrigatórios; aceitar mais de 1 foto.
+
+UX:
+
+Mostrar contador “N árvores adicionadas”.
+
+Colapsar itens (acordeão) para não ficar gigante quando tiver muitas árvores.
+
+5) Mapas e listagens (ajuste mínimo)
+
+Tela de Mapa: renderizar marcadores vindos de arvores em vez de inspecoes. Tooltip: espécie final (se houver) + endereço. Ao clicar, opção “Editar ponto” → abre formulário da Nota com o item focado.
+
+Tabela/Relatório: nas colunas, se necessário, mostrar contagem de árvores por Nota. Export CSV/KML deve considerar linhas por árvore (não por Nota).
+
+6) Componentes sugeridos (criar)
+
+src/components/ArvoreItem.tsx — card de um item (lat/lng, endereço, observação, fotos, IA, mapa).
+
+src/components/ArvoresFieldArray.tsx — encapsula useFieldArray, renderiza lista de ArvoreItem, e botão “Adicionar árvore”.
+
+7) Exemplo de payload items no submit (frontend)
+// items para o FormData:
+[
+  {
+    latitude: -23.2017,
+    longitude: -47.2911,
+    endereco: "Rua X, Centro",
+    observacao: "árvore interfere na rede",
+    fotos: ["https://…/arvores/<inspecao>/<arvore>/f1.jpg", "https://…/f2.jpg"]
+  },
+  {
+    latitude: -23.2022,
+    longitude: -47.2905,
+    endereco: "Av Y, Bairro Z",
+    observacao: "",
+    fotos: ["https://…/f1.jpg"]
+  }
+]
+
+8) Testes de aceitação (manual)
+
+Criar Nota preenchendo as Informações Básicas e Localização (EA/Município/…).
+
+Adicionar 2–3 árvores, cada uma com coordenadas diferentes e 2+ fotos.
+
+Salvar → backend cria a Nota e os itens em arvores + arvore_fotos.
+
+Abrir o Mapa → aparecem todos os pontos desta Nota.
+
+Editar uma Nota → consegue adicionar/remover árvores e arrastar o marcador para ajustar lat/lng do item.
+
+IA funciona por item (preenche espécie e confiança daquele ponto).
+
+9) Commit
+
+Após implementar, fazer commit:
+
+feat(inspecao): permitir múltiplas árvores por nota (pontos com fotos e observação por coordenada)
+
+
+Importante: manter compatibilidade — notas antigas com latitude/longitude/fotoUrl continuam funcionando, mas novas devem usar arvores/arvore_fotos. Se faltar algo do schema atual, adapte os nomes das colunas/rotas para combinar com o projeto.
