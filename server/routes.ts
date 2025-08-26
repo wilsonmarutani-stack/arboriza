@@ -337,7 +337,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Dashboard stats
   app.get("/api/dashboard/stats", async (req, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      const filters = {
+        eaId: req.query.ea_id as string,
+        municipioId: req.query.municipio_id as string
+      };
+      const stats = await storage.getDashboardStats(filters);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ error: "Erro ao buscar estatísticas" });

@@ -256,16 +256,26 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Dashboard stats
-  async getDashboardStats(): Promise<{
+  async getDashboardStats(filters?: { eaId?: string; municipioId?: string }): Promise<{
     totalInspections: number;
     highPriority: number;
     mediumPriority: number;
     lowPriority: number;
     byMunicipality: { municipio: string; count: number }[];
   }> {
+    // Build where conditions based on filters
+    const whereConditions = [];
+    if (filters?.eaId) {
+      whereConditions.push(eq(inspecoes.eaId, filters.eaId));
+    }
+    if (filters?.municipioId) {
+      whereConditions.push(eq(inspecoes.municipioId, filters.municipioId));
+    }
+
     const totalInspections = await db
       .select({ count: sql<number>`count(*)` })
-      .from(inspecoes);
+      .from(inspecoes)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
 
     const priorityCounts = await db
       .select({ 
@@ -273,6 +283,7 @@ export class DatabaseStorage implements IStorage {
         count: sql<number>`count(*)` 
       })
       .from(inspecoes)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(inspecoes.prioridade);
 
     const municipalityCounts = await db
@@ -282,6 +293,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(inspecoes)
       .leftJoin(municipios, eq(inspecoes.municipioId, municipios.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .groupBy(municipios.nome)
       .orderBy(desc(sql`count(*)`));
 

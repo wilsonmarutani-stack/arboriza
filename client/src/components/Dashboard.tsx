@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Network, AlertTriangle, Clock, CheckCircle, Plus, Map, FileText } from "lucide-react";
-import { InspecaoCompleta } from "@shared/schema";
+import { InspecaoCompleta, Ea, Municipio } from "@shared/schema";
+import { useState, useEffect } from "react";
 
 interface DashboardStats {
   totalInspections: number;
@@ -19,8 +21,38 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNewInspection, onShowMap, onShowReports }: DashboardProps) {
+  const [selectedEaId, setSelectedEaId] = useState<string>("");
+  const [selectedMunicipioId, setSelectedMunicipioId] = useState<string>("");
+
+  const { data: eas } = useQuery<Ea[]>({ queryKey: ["/api/refs/eas"] });
+  
+  const { data: municipios } = useQuery<Municipio[]>({
+    queryKey: ["/api/refs/municipios", selectedEaId],
+    enabled: !!selectedEaId,
+    queryFn: async () => {
+      const url = selectedEaId ? `/api/refs/municipios?ea_id=${encodeURIComponent(selectedEaId)}` : '/api/refs/municipios';
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Erro ao carregar municípios");
+      return resp.json();
+    },
+  });
+
+  // Reset município when EA changes
+  useEffect(() => {
+    setSelectedMunicipioId("");
+  }, [selectedEaId]);
+
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
-    queryKey: ["/api/dashboard/stats"],
+    queryKey: ["/api/dashboard/stats", selectedEaId, selectedMunicipioId],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedEaId) params.append('ea_id', selectedEaId);
+      if (selectedMunicipioId) params.append('municipio_id', selectedMunicipioId);
+      const url = `/api/dashboard/stats${params.toString() ? '?' + params.toString() : ''}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Erro ao carregar estatísticas");
+      return resp.json();
+    },
   });
 
   const { data: recentInspections, isLoading: inspectionsLoading } = useQuery<InspecaoCompleta[]>({
@@ -80,6 +112,56 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
           </Button>
         </div>
       </div>
+
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">EA</label>
+              <Select value={selectedEaId} onValueChange={setSelectedEaId}>
+                <SelectTrigger data-testid="select-ea">
+                  <SelectValue placeholder="Todas as EAs" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todas as EAs</SelectItem>
+                  {eas?.map((ea) => (
+                    <SelectItem key={ea.id} value={ea.id}>{ea.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-2 block">Município</label>
+              <Select value={selectedMunicipioId} onValueChange={setSelectedMunicipioId} disabled={!selectedEaId}>
+                <SelectTrigger data-testid="select-municipio">
+                  <SelectValue placeholder="Todos os municípios" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Todos os municípios</SelectItem>
+                  {municipios?.map((municipio) => (
+                    <SelectItem key={municipio.id} value={municipio.id}>{municipio.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex items-end">
+              <Button 
+                variant="outline" 
+                onClick={() => { setSelectedEaId(""); setSelectedMunicipioId(""); }}
+                data-testid="button-limpar-filtros"
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -208,9 +290,6 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
                 <div className="p-6 text-center text-gray-500">
                   <Network className="w-12 h-12 mx-auto mb-4 text-gray-300" />
                   <p>Nenhuma inspeção encontrada</p>
-                  <Button onClick={onNewInspection} className="mt-4" data-testid="button-primeira-inspecao">
-                    Criar primeira inspeção
-                  </Button>
                 </div>
               )}
               {recentInspections && recentInspections.length > 0 && (
