@@ -2,7 +2,6 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
-import { identifyTreeSpecies } from "./openaiService";
 import { exportService } from "./exportService";
 import { insertInspecaoSchema, insertEspecieCandidatoSchema, insertArvoreSchema } from "@shared/schema";
 import multer from "multer";
@@ -284,29 +283,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // OpenAI species identification using base64 images
-  app.post("/api/ia/openai/identificar-especie", async (req, res) => {
+  // Simple image upload for species identification
+  app.post("/api/upload", upload.single('file'), async (req, res) => {
     try {
-      const { imageBase64 } = req.body;
-      
-      if (!imageBase64) {
-        return res.status(400).json({ error: "imageBase64 é obrigatória" });
+      if (!req.file) {
+        return res.status(400).json({ error: "Nenhum arquivo enviado" });
       }
-
-      if (!process.env.OPENAI_API_KEY) {
-        return res.status(500).json({ error: "OPENAI_API_KEY não configurada" });
-      }
-
-      // Call OpenAI service
-      const result = await identifyTreeSpecies(imageBase64);
       
-      res.json(result);
-    } catch (error: any) {
-      console.error("Erro na identificação OpenAI:", error);
-      res.status(500).json({ 
-        error: "Falha na identificação com OpenAI", 
-        detail: error.message 
-      });
+      // Return the URL that can be accessed by PlantNet
+      const serverUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+      res.json({ url: serverUrl });
+    } catch (error) {
+      console.error("Erro no upload:", error);
+      res.status(500).json({ error: "Erro ao fazer upload da imagem" });
     }
   });
 

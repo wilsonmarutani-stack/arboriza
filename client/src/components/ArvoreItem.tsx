@@ -27,8 +27,7 @@ interface ArvoreItemProps {
   };
   onUpdate: (index: number, updates: Partial<ArvoreItemProps['arvore']>) => void;
   onRemove: (index: number) => void;
-  onIdentifySpeciesPlantNet?: (index: number) => void;
-  onIdentifySpeciesOpenAI?: (index: number) => void;
+  onPhotoAdded?: (index: number, photoUrl: string) => void;
 }
 
 export function ArvoreItem({ 
@@ -36,8 +35,7 @@ export function ArvoreItem({
   arvore, 
   onUpdate, 
   onRemove,
-  onIdentifySpeciesPlantNet,
-  onIdentifySpeciesOpenAI
+  onPhotoAdded
 }: ArvoreItemProps) {
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
@@ -112,10 +110,10 @@ export function ArvoreItem({
     }
   };
 
-  const handlePhotoUpload = () => {
+  const handlePhotoUpload = async () => {
     if (!newPhotoFile) return;
     
-    // Simulate upload - in real app, upload to server first
+    // Create a proper URL from the file for API calls
     const photoUrl = URL.createObjectURL(newPhotoFile);
     const updatedFotos = [...arvore.fotos, { url: photoUrl }];
     onUpdate(index, { fotos: updatedFotos });
@@ -123,8 +121,13 @@ export function ArvoreItem({
     
     toast({
       title: "Foto adicionada",
-      description: "A foto foi adicionada à árvore"
+      description: "Identificando espécie automaticamente..."
     });
+
+    // Trigger automatic species identification
+    if (onPhotoAdded) {
+      onPhotoAdded(index, photoUrl);
+    }
   };
 
   const removePhoto = (photoIndex: number) => {
@@ -352,35 +355,7 @@ export function ArvoreItem({
           {/* Species identification */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <Label>Espécie Final</Label>
-              <div className="flex space-x-2">
-                {onIdentifySpeciesPlantNet && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onIdentifySpeciesPlantNet(index)}
-                    disabled={!canIdentifySpecies}
-                    data-testid={`button-identify-plantnet-${index}`}
-                  >
-                    <Brain className="w-4 h-4 mr-2" />
-                    PlantNet
-                  </Button>
-                )}
-                {onIdentifySpeciesOpenAI && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onIdentifySpeciesOpenAI(index)}
-                    disabled={!canIdentifySpecies}
-                    data-testid={`button-identify-openai-${index}`}
-                  >
-                    <Brain className="w-4 h-4 mr-2" />
-                    OpenAI
-                  </Button>
-                )}
-              </div>
+              <Label>Espécie Identificada</Label>
             </div>
             
             <Input
@@ -392,7 +367,7 @@ export function ArvoreItem({
             
             {arvore.especieConfiancaMedia && (
               <p className="text-sm text-gray-600">
-                Confiança: {(arvore.especieConfiancaMedia * 100).toFixed(1)}%
+                Confiança: {arvore.especieConfiancaMedia.toFixed(0)}% (PlantNet)
               </p>
             )}
           </div>

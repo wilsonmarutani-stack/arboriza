@@ -23,16 +23,14 @@ interface ArvoresFieldArrayProps {
   control: Control<any>;
   name: string;
   form: any; // React Hook Form instance
-  onIdentifySpeciesPlantNet?: (index: number) => void;
-  onIdentifySpeciesOpenAI?: (index: number) => void;
+  onPhotoAdded?: (index: number, photoUrl: string) => void;
 }
 
 export function ArvoresFieldArray({ 
   control, 
   name, 
   form,
-  onIdentifySpeciesPlantNet,
-  onIdentifySpeciesOpenAI 
+  onPhotoAdded
 }: ArvoresFieldArrayProps) {
   const { fields, append, remove, update } = useFieldArray({
     control,
@@ -120,8 +118,7 @@ export function ArvoresFieldArray({
               arvore={field as unknown as ArvoreData}
               onUpdate={updateArvore}
               onRemove={remove}
-              onIdentifySpeciesPlantNet={onIdentifySpeciesPlantNet}
-              onIdentifySpeciesOpenAI={onIdentifySpeciesOpenAI}
+              onPhotoAdded={onPhotoAdded}
             />
           ))
         )}
