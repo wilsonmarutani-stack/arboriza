@@ -301,9 +301,26 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       // Now identify species using the server URL
       const result = await identificarEspecie(serverImageUrl, []);
       
-      // Update specific tree data
+      // Update specific tree data using both form.setValue and direct update
+      console.log("Resultado da identificação:", result);
+      
       form.setValue(`arvores.${index}.especieFinal`, result.especie_sugerida);
       form.setValue(`arvores.${index}.especieConfiancaMedia`, result.confianca_media);
+      
+      // Also trigger the component update directly
+      const arvores = form.getValues("arvores");
+      const updatedArvore = {
+        ...arvores[index],
+        especieFinal: result.especie_sugerida,
+        especieConfiancaMedia: result.confianca_media
+      };
+      
+      // Update the arvores array
+      const updatedArvores = [...arvores];
+      updatedArvores[index] = updatedArvore;
+      form.setValue("arvores", updatedArvores);
+      
+      console.log("Árvore atualizada:", updatedArvore);
       
       toast({
         title: "Espécie identificada",
