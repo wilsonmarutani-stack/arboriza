@@ -59,14 +59,8 @@ export function ArvoresFieldArray({
     const currentArvore = fields[index] as unknown as ArvoreData;
     const newArvore = { ...currentArvore, ...updates };
     
-    // Debug: Log coordinate updates
+    // Força atualização do form para garantir que os valores sejam persistidos
     if (updates.latitude !== undefined || updates.longitude !== undefined) {
-      console.log(`Atualizando árvore ${index}:`, { 
-        old: { lat: currentArvore.latitude, lng: currentArvore.longitude },
-        new: { lat: newArvore.latitude, lng: newArvore.longitude }
-      });
-      
-      // Força atualização do form para garantir que os valores sejam persistidos
       form.setValue(`arvores.${index}.latitude`, newArvore.latitude);
       form.setValue(`arvores.${index}.longitude`, newArvore.longitude);
       
@@ -74,17 +68,6 @@ export function ArvoresFieldArray({
       if (updates.endereco !== undefined) {
         form.setValue(`arvores.${index}.endereco`, updates.endereco);
       }
-      
-      // Verifica se foi salvo corretamente
-      setTimeout(() => {
-        const formValues = form.getValues();
-        console.log(`Verificação após update árvore ${index}:`, {
-          formLat: formValues.arvores[index]?.latitude,
-          formLng: formValues.arvores[index]?.longitude,
-          expectedLat: newArvore.latitude,
-          expectedLng: newArvore.longitude
-        });
-      }, 100);
     }
     
     update(index, newArvore);

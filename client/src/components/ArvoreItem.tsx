@@ -56,7 +56,6 @@ export function ArvoreItem({
           const newLat = position.coords.latitude;
           const newLng = position.coords.longitude;
           
-          console.log(`GPS árvore ${index}: lat=${newLat}, lng=${newLng}`);
           
           // Atualizar coordenadas temporárias
           setTempCoords({ lat: newLat, lng: newLng });
@@ -92,7 +91,6 @@ export function ArvoreItem({
   };
 
   const applyTempCoords = () => {
-    console.log(`Aplicando coords árvore ${index}: lat=${tempCoords.lat}, lng=${tempCoords.lng}`);
     onUpdate(index, { latitude: tempCoords.lat, longitude: tempCoords.lng });
     fetchAddressForCoordinates(tempCoords.lat, tempCoords.lng);
     setShowMap(false);
@@ -176,7 +174,6 @@ export function ArvoreItem({
                 value={arvore.latitude}
                 onChange={(e) => {
                   const newLat = parseFloat(e.target.value);
-                  console.log(`Input latitude árvore ${index}: ${newLat}`);
                   onUpdate(index, { latitude: newLat });
                 }}
                 data-testid={`input-latitude-${index}`}
@@ -190,7 +187,6 @@ export function ArvoreItem({
                 value={arvore.longitude}
                 onChange={(e) => {
                   const newLng = parseFloat(e.target.value);
-                  console.log(`Input longitude árvore ${index}: ${newLng}`);
                   onUpdate(index, { longitude: newLng });
                 }}
                 data-testid={`input-longitude-${index}`}
