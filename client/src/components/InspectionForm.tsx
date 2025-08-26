@@ -315,6 +315,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const onSubmit = (data: FormData) => {
     if (uploadedImageUrl) data.fotoUrl = uploadedImageUrl;
     
+    // Debug: Log what's being submitted
+    console.log("=== SUBMIT DEBUG ===");
+    console.log("Form data received:", data);
+    console.log("Árvores data:", data.arvores);
+    console.log("Form.getValues():", form.getValues());
+    
     // Use coordinates from first tree for main inspection data (for compatibility)
     const firstTree = data.arvores[0];
     const inspectionData = {
@@ -325,6 +331,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       arvores: data.arvores
     };
     
+    console.log("Final inspection data:", inspectionData);
+    console.log("====================");
     
     createInspectionMutation.mutate(inspectionData);
   };
