@@ -21,16 +21,16 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNewInspection, onShowMap, onShowReports }: DashboardProps) {
-  const [selectedEaId, setSelectedEaId] = useState<string>("");
-  const [selectedMunicipioId, setSelectedMunicipioId] = useState<string>("");
+  const [selectedEaId, setSelectedEaId] = useState<string>("all");
+  const [selectedMunicipioId, setSelectedMunicipioId] = useState<string>("all");
 
   const { data: eas } = useQuery<Ea[]>({ queryKey: ["/api/refs/eas"] });
   
   const { data: municipios } = useQuery<Municipio[]>({
     queryKey: ["/api/refs/municipios", selectedEaId],
-    enabled: !!selectedEaId,
+    enabled: selectedEaId !== "all",
     queryFn: async () => {
-      const url = selectedEaId ? `/api/refs/municipios?ea_id=${encodeURIComponent(selectedEaId)}` : '/api/refs/municipios';
+      const url = `/api/refs/municipios?ea_id=${encodeURIComponent(selectedEaId)}`;
       const resp = await fetch(url);
       if (!resp.ok) throw new Error("Erro ao carregar municípios");
       return resp.json();
@@ -39,15 +39,15 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
 
   // Reset município when EA changes
   useEffect(() => {
-    setSelectedMunicipioId("");
+    setSelectedMunicipioId("all");
   }, [selectedEaId]);
 
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats", selectedEaId, selectedMunicipioId],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (selectedEaId) params.append('ea_id', selectedEaId);
-      if (selectedMunicipioId) params.append('municipio_id', selectedMunicipioId);
+      if (selectedEaId !== "all") params.append('ea_id', selectedEaId);
+      if (selectedMunicipioId !== "all") params.append('municipio_id', selectedMunicipioId);
       const url = `/api/dashboard/stats${params.toString() ? '?' + params.toString() : ''}`;
       const resp = await fetch(url);
       if (!resp.ok) throw new Error("Erro ao carregar estatísticas");
@@ -127,7 +127,7 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
                   <SelectValue placeholder="Todas as EAs" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as EAs</SelectItem>
+                  <SelectItem value="all">Todas as EAs</SelectItem>
                   {eas?.map((ea) => (
                     <SelectItem key={ea.id} value={ea.id}>{ea.nome}</SelectItem>
                   ))}
@@ -137,12 +137,12 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
             
             <div>
               <label className="text-sm font-medium text-gray-700 mb-2 block">Município</label>
-              <Select value={selectedMunicipioId} onValueChange={setSelectedMunicipioId} disabled={!selectedEaId}>
+              <Select value={selectedMunicipioId} onValueChange={setSelectedMunicipioId} disabled={selectedEaId === "all"}>
                 <SelectTrigger data-testid="select-municipio">
                   <SelectValue placeholder="Todos os municípios" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todos os municípios</SelectItem>
+                  <SelectItem value="all">Todos os municípios</SelectItem>
                   {municipios?.map((municipio) => (
                     <SelectItem key={municipio.id} value={municipio.id}>{municipio.nome}</SelectItem>
                   ))}
@@ -153,7 +153,7 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
             <div className="flex items-end">
               <Button 
                 variant="outline" 
-                onClick={() => { setSelectedEaId(""); setSelectedMunicipioId(""); }}
+                onClick={() => { setSelectedEaId("all"); setSelectedMunicipioId("all"); }}
                 data-testid="button-limpar-filtros"
               >
                 Limpar filtros
