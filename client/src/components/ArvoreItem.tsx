@@ -184,32 +184,34 @@ export function ArvoreItem({
             <div>
               <Label>Latitude *</Label>
               <Input
-                type="number"
-                step="any"
-                value={form ? form.watch(`${fieldName}.${index}.latitude`) || -23.2017 : (arvore.latitude || -23.2017)}
+                type="text"
+                value={form ? (form.watch(`${fieldName}.${index}.latitude`) || -23.2017).toString() : (arvore.latitude || -23.2017).toString()}
                 onChange={(e) => {
-                  const newLat = parseFloat(e.target.value) || -23.2017;
+                  const value = e.target.value;
+                  const newLat = parseFloat(value) || -23.2017;
                   if (form) {
                     form.setValue(`${fieldName}.${index}.latitude`, newLat);
                   }
                   onUpdate(index, { latitude: newLat });
                 }}
+                placeholder="Ex: -23.210954"
                 data-testid={`input-latitude-${index}`}
               />
             </div>
             <div>
               <Label>Longitude *</Label>
               <Input
-                type="number"
-                step="any"
-                value={form ? form.watch(`${fieldName}.${index}.longitude`) || -47.2911 : (arvore.longitude || -47.2911)}
+                type="text"
+                value={form ? (form.watch(`${fieldName}.${index}.longitude`) || -47.2911).toString() : (arvore.longitude || -47.2911).toString()}
                 onChange={(e) => {
-                  const newLng = parseFloat(e.target.value) || -47.2911;
+                  const value = e.target.value;
+                  const newLng = parseFloat(value) || -47.2911;
                   if (form) {
                     form.setValue(`${fieldName}.${index}.longitude`, newLng);
                   }
                   onUpdate(index, { longitude: newLng });
                 }}
+                placeholder="Ex: -47.295757"
                 data-testid={`input-longitude-${index}`}
               />
             </div>
