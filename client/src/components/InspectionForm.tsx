@@ -135,12 +135,17 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     mutationFn: async (data: FormData) => {
       const fd = new FormData();
       Object.entries(data).forEach(([key, value]) => {
-        if (key !== "foto" && value !== undefined && value !== null) {
+        if (key !== "foto" && key !== "arvores" && value !== undefined && value !== null) {
           if (value instanceof Date) fd.append(key, value.toISOString());
           else fd.append(key, String(value));
         }
       });
       if (uploadedImageUrl) fd.append("fotoUrl", uploadedImageUrl);
+      
+      // Add trees as JSON string in 'items' field (expected by server)
+      if (data.arvores && data.arvores.length > 0) {
+        fd.append("items", JSON.stringify(data.arvores));
+      }
 
       const resp = await fetch("/api/inspecoes", { method: "POST", body: fd });
       if (!resp.ok) throw new Error((await resp.json()).message || "Erro ao criar inspeção");
@@ -148,6 +153,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inspecoes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/arvores"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       toast({ title: "Sucesso", description: "Inspeção criada com sucesso!" });
       onClose();
