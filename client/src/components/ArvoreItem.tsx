@@ -61,12 +61,16 @@ export function ArvoreItem({
           const newLng = position.coords.longitude;
           
           console.log(`GPS obtido - Árvore ${index}: lat=${newLat}, lng=${newLng}`);
-          console.log(`Coordenadas atuais da árvore:`, arvore);
           
           // Atualizar coordenadas temporárias
           setTempCoords({ lat: newLat, lng: newLng });
           
-          // Atualizar o formulário
+          // Atualizar tanto o form quanto o callback
+          if (form) {
+            form.setValue(`${fieldName}.${index}.latitude`, newLat);
+            form.setValue(`${fieldName}.${index}.longitude`, newLng);
+          }
+          
           onUpdate(index, {
             latitude: newLat,
             longitude: newLng
