@@ -52,6 +52,22 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
       limit: itemsPerPage, 
       offset: (currentPage - 1) * itemsPerPage 
     }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (filters.eaId) params.append('ea_id', filters.eaId);
+      if (filters.municipioId) params.append('municipio_id', filters.municipioId);
+      if (filters.prioridade) params.append('prioridade', filters.prioridade);
+      if (filters.dataInicio) params.append('data_inicio', filters.dataInicio);
+      if (filters.dataFim) params.append('data_fim', filters.dataFim);
+      if (filters.numeroNota) params.append('numeroNota', filters.numeroNota);
+      params.append('limit', itemsPerPage.toString());
+      params.append('offset', ((currentPage - 1) * itemsPerPage).toString());
+
+      const url = `/api/inspecoes${params.toString() ? '?' + params.toString() : ''}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Erro ao carregar inspeções");
+      return resp.json();
+    },
   });
 
   // Export functions
