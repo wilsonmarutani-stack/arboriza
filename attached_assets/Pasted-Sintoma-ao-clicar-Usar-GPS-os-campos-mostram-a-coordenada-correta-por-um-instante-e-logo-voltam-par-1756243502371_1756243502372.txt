@@ -1,0 +1,93 @@
+Sintoma: ao clicar Usar GPS os campos mostram a coordenada correta por um instante e logo voltam para o placeholder “Ex: -23.210954 / -47.295757”.
+Causa provável: o componente é re-renderizado pelo onUpdate do pai e o RHF não está “hidratado” com os valores atuais; watch() volta undefined e o value cai para "".
+Objetivo: tornar o React Hook Form a fonte de verdade dos campos, registrar/hidratar corretamente e evitar resets em re-render.
+
+Edite client/src/components/ArvoreItem.tsx
+
+Registrar campos no RHF
+Logo após os useState/useEffect iniciais do componente, adicione:
+
+useEffect(() => {
+  if (!form) return;
+  form.register(`${fieldName}.${index}.latitude`);
+  form.register(`${fieldName}.${index}.longitude`);
+}, [form, fieldName, index]);
+
+
+Hidratar o RHF quando arvore mudar / ao montar
+(impede que um re-render do pai “apague” os valores do form)
+
+useEffect(() => {
+  if (!form) return;
+  const latPath = `${fieldName}.${index}.latitude`;
+  const lngPath = `${fieldName}.${index}.longitude`;
+
+  const currentLat = form.getValues(latPath);
+  const currentLng = form.getValues(lngPath);
+
+  if (currentLat == null && arvore.latitude != null) {
+    form.setValue(latPath, arvore.latitude, { shouldDirty: false, shouldValidate: false });
+  }
+  if (currentLng == null && arvore.longitude != null) {
+    form.setValue(lngPath, arvore.longitude, { shouldDirty: false, shouldValidate: false });
+  }
+}, [form, fieldName, index, arvore.latitude, arvore.longitude]);
+
+
+Corrigir value dos inputs para preferir RHF e cair para arvore
+— Troque apenas as props value dos dois <Input> na seção “Coordinates”:
+
+// Latitude
+value={(form?.watch(`${fieldName}.${index}.latitude`) ?? arvore.latitude) ?? ""}
+
+// Longitude
+value={(form?.watch(`${fieldName}.${index}.longitude`) ?? arvore.longitude) ?? ""}
+
+
+Mantenha o onChange atual que usa setValue(..., { shouldDirty:true, shouldValidate:true }) e chama onUpdate.
+
+Garanta que handleLocationFromGPS continua definindo RHF e estado externo:
+
+form.setValue(`${fieldName}.${index}.latitude`, newLat, { shouldDirty:true, shouldValidate:true });
+form.setValue(`${fieldName}.${index}.longitude`, newLng, { shouldDirty:true, shouldValidate:true });
+onUpdate(index, { latitude: newLat, longitude: newLng });
+
+
+No diálogo “Ajustar no mapa” (se ainda não fez):
+
+Inputs editam tempCoords (não arvore diretamente).
+
+applyTempCoords() deve fazer form.setValue(...) e depois onUpdate(...).
+
+Edite client/src/components/ArvoresFieldArray.tsx (prevenir resets do pai)
+
+Evitar reatribuir defaults em re-render
+
+Remova const baseLatitude = -23.2017 (e qualquer default fixo).
+
+Na criação de nova árvore use { latitude: undefined, longitude: undefined, ... }.
+
+Em updateArvore, faça merge e ignore updates vazios:
+
+const updateArvore = (index: number, updates: Partial<Arvore>) => {
+  if (!updates || Object.keys(updates).length === 0) return;
+  setNota(prev => {
+    const next = structuredClone(prev);
+    next.arvores[index] = { ...next.arvores[index], ...updates };
+    return next;
+  });
+};
+
+Edite client/src/components/MapComponent.tsx/MapView.tsx (opcional, evitar recentragem indesejada)
+
+Use um DEFAULT_CENTER apenas no useState inicial; não reatribua center=[-23.2017,-47.2911] a cada render. Se coordenadas válidas chegarem, atualize via useEffect.
+
+Critérios de aceitação
+
+Clicar Usar GPS preenche e mantém os valores nos inputs.
+
+Abrir o diálogo, arrastar o marcador e Aplicar atualiza inputs e não volta ao placeholder.
+
+Em re-renders do pai, os campos continuam com as coordenadas.
+
+Não existem mais fallbacks mágicos (|| -23.2017 / || -47.2911) no código ativo desses componentes.

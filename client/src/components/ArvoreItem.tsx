@@ -44,7 +44,7 @@ export function ArvoreItem({
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [showMap, setShowMap] = useState(false);
-  const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
+  const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
 
   // Registrar os campos no RHF
   useEffect(() => {
@@ -53,10 +53,27 @@ export function ArvoreItem({
     form.register(`${fieldName}.${index}.longitude`);
   }, [form, fieldName, index]);
 
+  // Hidratar o RHF quando arvore mudar / ao montar
+  useEffect(() => {
+    if (!form) return;
+    const latPath = `${fieldName}.${index}.latitude`;
+    const lngPath = `${fieldName}.${index}.longitude`;
+
+    const currentLat = form.getValues(latPath);
+    const currentLng = form.getValues(lngPath);
+
+    if (currentLat == null && arvore.latitude != null) {
+      form.setValue(latPath, arvore.latitude, { shouldDirty: false, shouldValidate: false });
+    }
+    if (currentLng == null && arvore.longitude != null) {
+      form.setValue(lngPath, arvore.longitude, { shouldDirty: false, shouldValidate: false });
+    }
+  }, [form, fieldName, index, arvore.latitude, arvore.longitude]);
+
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
-      setTempCoords({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
+      setTempCoords({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
     }
   }, [showMap]);
 
@@ -280,12 +297,12 @@ export function ArvoreItem({
                   <MapComponent
                     height="400px"
                     center={[
-                      Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude || -23.2109,
-                      Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude || -47.2957,
+                      Number.isFinite(tempCoords.lat) ? tempCoords.lat : (arvore.latitude ?? -23.2109),
+                      Number.isFinite(tempCoords.lng) ? tempCoords.lng : (arvore.longitude ?? -47.2957),
                     ]}
                     draggableMarker={{
-                      lat: Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude || -23.2109,
-                      lng: Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude || -47.2957,
+                      lat: Number.isFinite(tempCoords.lat) ? tempCoords.lat : (arvore.latitude ?? -23.2109),
+                      lng: Number.isFinite(tempCoords.lng) ? tempCoords.lng : (arvore.longitude ?? -47.2957),
                       onDrag: handleMarkerDrag,
                     }}
                   />
@@ -297,7 +314,7 @@ export function ArvoreItem({
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        setTempCoords({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
+                        setTempCoords({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
                         setShowMap(false);
                       }}
                       data-testid={`button-cancel-map-${index}`}

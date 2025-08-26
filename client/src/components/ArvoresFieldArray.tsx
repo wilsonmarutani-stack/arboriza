@@ -51,13 +51,7 @@ export function ArvoresFieldArray({
   };
 
   const updateArvore = (index: number, updates: Partial<ArvoreData>) => {
-    // Atualizar cada campo individualmente no form
-    Object.keys(updates).forEach(key => {
-      const value = updates[key as keyof ArvoreData];
-      if (value !== undefined) {
-        form.setValue(`${name}.${index}.${key}` as any, value);
-      }
-    });
+    if (!updates || Object.keys(updates).length === 0) return;
     
     console.log(`updateArvore chamado:`, { index, updates });
     
