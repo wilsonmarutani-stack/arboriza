@@ -22,12 +22,14 @@ interface ArvoreData {
 interface ArvoresFieldArrayProps {
   control: Control<any>;
   name: string;
+  form: any; // React Hook Form instance
   onIdentifySpecies?: (index: number) => void;
 }
 
 export function ArvoresFieldArray({ 
   control, 
   name, 
+  form,
   onIdentifySpecies 
 }: ArvoresFieldArrayProps) {
   const { fields, append, remove, update } = useFieldArray({
@@ -63,6 +65,15 @@ export function ArvoresFieldArray({
         old: { lat: currentArvore.latitude, lng: currentArvore.longitude },
         new: { lat: newArvore.latitude, lng: newArvore.longitude }
       });
+      
+      // Força atualização do form para garantir que os valores sejam persistidos
+      form.setValue(`arvores.${index}.latitude`, newArvore.latitude);
+      form.setValue(`arvores.${index}.longitude`, newArvore.longitude);
+      
+      // Se endereço for passado, também atualiza
+      if (updates.endereco !== undefined) {
+        form.setValue(`arvores.${index}.endereco`, updates.endereco);
+      }
     }
     
     update(index, newArvore);

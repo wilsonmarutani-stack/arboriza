@@ -327,6 +327,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     
     // Debug: Log the tree data being submitted
     console.log("Enviando árvores:", data.arvores.map(a => ({ lat: a.latitude, lng: a.longitude, endereco: a.endereco })));
+    console.log("Form values completos:", form.getValues());
     
     createInspectionMutation.mutate(inspectionData);
   };
@@ -550,6 +551,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
           <ArvoresFieldArray
             control={form.control}
             name="arvores"
+            form={form}
             onIdentifySpecies={(index) => {
               // TODO: Implement species identification for specific tree
               toast({
