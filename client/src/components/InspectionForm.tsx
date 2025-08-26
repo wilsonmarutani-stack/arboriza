@@ -541,13 +541,6 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
           <ArvoresFieldArray
             control={form.control}
             name="arvores"
-            onMapClick={(index) => {
-              // TODO: Implement map interaction for specific tree
-              toast({
-                title: "Em desenvolvimento",
-                description: "Funcionalidade de mapa para árvores específicas em desenvolvimento"
-              });
-            }}
             onIdentifySpecies={(index) => {
               // TODO: Implement species identification for specific tree
               toast({

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Trash2, Upload, Brain, Map } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
+import { MapComponent } from "./MapComponent";
 
 interface ArvoreFoto {
   id?: string;
@@ -26,7 +27,6 @@ interface ArvoreItemProps {
   };
   onUpdate: (index: number, updates: Partial<ArvoreItemProps['arvore']>) => void;
   onRemove: (index: number) => void;
-  onMapClick?: (index: number) => void;
   onIdentifySpecies?: (index: number) => void;
 }
 
@@ -34,12 +34,12 @@ export function ArvoreItem({
   index, 
   arvore, 
   onUpdate, 
-  onRemove, 
-  onMapClick,
+  onRemove,
   onIdentifySpecies
 }: ArvoreItemProps) {
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
+  const [showMap, setShowMap] = useState(false);
 
   const handleLocationFromGPS = () => {
     if (navigator.geolocation) {
@@ -53,6 +53,8 @@ export function ArvoreItem({
             title: "Localização obtida",
             description: "Coordenadas atualizadas com sua localização atual"
           });
+          // Fetch address for the new coordinates
+          fetchAddressForCoordinates(position.coords.latitude, position.coords.longitude);
         },
         (error) => {
           toast({
@@ -62,6 +64,23 @@ export function ArvoreItem({
           });
         }
       );
+    }
+  };
+
+  const handleMarkerDrag = (lat: number, lng: number) => {
+    onUpdate(index, { latitude: lat, longitude: lng });
+    fetchAddressForCoordinates(lat, lng);
+  };
+
+  const fetchAddressForCoordinates = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
+      if (response.ok) {
+        const data = await response.json();
+        onUpdate(index, { endereco: data.endereco });
+      }
+    } catch (error) {
+      console.error("Erro ao buscar endereço:", error);
     }
   };
 
@@ -156,18 +175,34 @@ export function ArvoreItem({
               <MapPin className="w-4 h-4 mr-2" />
               Usar GPS
             </Button>
-            {onMapClick && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onMapClick(index)}
-                data-testid={`button-map-${index}`}
-              >
-                <Map className="w-4 h-4 mr-2" />
-                Ajustar no mapa
-              </Button>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowMap(!showMap)}
+              data-testid={`button-map-${index}`}
+            >
+              <Map className="w-4 h-4 mr-2" />
+              {showMap ? "Esconder mapa" : "Ajustar no mapa"}
+            </Button>
           </div>
+
+          {/* Interactive Map */}
+          {showMap && (
+            <div>
+              <Label>Ajustar posição no mapa</Label>
+              <MapComponent
+                height="300px"
+                center={[arvore.latitude, arvore.longitude]}
+                draggableMarker={{
+                  lat: arvore.latitude,
+                  lng: arvore.longitude,
+                  onDrag: handleMarkerDrag,
+                }}
+                className="mt-2"
+              />
+              <p className="text-xs text-gray-500 mt-2">Arraste o marcador para ajustar a posição exata da árvore</p>
+            </div>
+          )}
 
           {/* Address */}
           <div>

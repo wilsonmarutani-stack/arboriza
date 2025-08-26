@@ -22,14 +22,12 @@ interface ArvoreData {
 interface ArvoresFieldArrayProps {
   control: Control<any>;
   name: string;
-  onMapClick?: (index: number) => void;
   onIdentifySpecies?: (index: number) => void;
 }
 
 export function ArvoresFieldArray({ 
   control, 
   name, 
-  onMapClick, 
   onIdentifySpecies 
 }: ArvoresFieldArrayProps) {
   const { fields, append, remove, update } = useFieldArray({
@@ -51,7 +49,7 @@ export function ArvoresFieldArray({
   };
 
   const updateArvore = (index: number, updates: Partial<ArvoreData>) => {
-    const currentArvore = fields[index] as ArvoreData;
+    const currentArvore = fields[index] as unknown as ArvoreData;
     update(index, { ...currentArvore, ...updates });
   };
 
@@ -87,10 +85,9 @@ export function ArvoresFieldArray({
             <ArvoreItem
               key={field.id}
               index={index}
-              arvore={field as ArvoreData}
+              arvore={field as unknown as ArvoreData}
               onUpdate={updateArvore}
               onRemove={remove}
-              onMapClick={onMapClick}
               onIdentifySpecies={onIdentifySpecies}
             />
           ))
