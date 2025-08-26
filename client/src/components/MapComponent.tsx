@@ -33,9 +33,11 @@ interface MapComponentProps {
   className?: string;
 }
 
+const DEFAULT_CENTER: [number, number] = [-23.2109, -47.2957];
+
 export function MapComponent({
   height = "400px",
-  center = [-23.2017, -47.2911],
+  center = DEFAULT_CENTER,
   zoom = 13,
   markers = [],
   draggableMarker,

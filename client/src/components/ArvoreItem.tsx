@@ -17,8 +17,8 @@ interface ArvoreFoto {
 interface ArvoreItemProps {
   index: number;
   arvore: {
-    latitude: number;
-    longitude: number;
+    latitude: number | undefined;
+    longitude: number | undefined;
     endereco?: string;
     observacao?: string;
     especieFinal?: string;
@@ -44,69 +44,16 @@ export function ArvoreItem({
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [showMap, setShowMap] = useState(false);
-  const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude, lng: arvore.longitude });
+  const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
 
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
-      setTempCoords({ lat: arvore.latitude, lng: arvore.longitude });
+      setTempCoords({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
     }
-  }, [showMap]); // Removido arvore.latitude, arvore.longitude para evitar loops
+  }, [showMap]);
 
-  const handleLocationFromGPS = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLat = position.coords.latitude;
-          const newLng = position.coords.longitude;
-          
-          console.log(`GPS obtido - Árvore ${index}: lat=${newLat}, lng=${newLng}`);
-          
-          // Atualizar coordenadas temporárias
-          setTempCoords({ lat: newLat, lng: newLng });
-          
-          // Atualizar tanto o form quanto o callback
-          if (form) {
-            form.setValue(`${fieldName}.${index}.latitude`, newLat);
-            form.setValue(`${fieldName}.${index}.longitude`, newLng);
-          }
-          
-          onUpdate(index, {
-            latitude: newLat,
-            longitude: newLng
-          });
-          
-          toast({
-            title: "Localização obtida",
-            description: `Coordenadas: ${newLat.toFixed(6)}, ${newLng.toFixed(6)}`
-          });
-          
-          // Fetch address for the new coordinates
-          fetchAddressForCoordinates(newLat, newLng);
-        },
-        (error) => {
-          toast({
-            title: "Erro ao obter localização",
-            description: "Verifique se você permitiu acesso à localização",
-            variant: "destructive"
-          });
-        }
-      );
-    }
-  };
-
-  const handleMarkerDrag = (lat: number, lng: number) => {
-    setTempCoords({ lat, lng });
-    // Não atualiza as coordenadas reais imediatamente para evitar re-renderização do dialog
-  };
-
-  const applyTempCoords = () => {
-    onUpdate(index, { latitude: tempCoords.lat, longitude: tempCoords.lng });
-    fetchAddressForCoordinates(tempCoords.lat, tempCoords.lng);
-    setShowMap(false);
-  };
-
-  const fetchAddressForCoordinates = async (lat: number, lng: number) => {
+  async function fetchAddressForCoordinates(lat: number, lng: number) {
     try {
       const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
       if (response.ok) {
@@ -116,7 +63,44 @@ export function ArvoreItem({
     } catch (error) {
       console.error("Erro ao buscar endereço:", error);
     }
+  }
+
+  const handleLocationFromGPS = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        const newLat = Number(coords.latitude.toFixed(6));
+        const newLng = Number(coords.longitude.toFixed(6));
+        setTempCoords({ lat: newLat, lng: newLng });
+        if (form) {
+          form.setValue(`${fieldName}.${index}.latitude`, newLat, { shouldDirty: true, shouldValidate: true });
+          form.setValue(`${fieldName}.${index}.longitude`, newLng, { shouldDirty: true, shouldValidate: true });
+        }
+        onUpdate(index, { latitude: newLat, longitude: newLng });
+        toast({ title: "Localização obtida", description: `Coordenadas: ${newLat}, ${newLng}` });
+        fetchAddressForCoordinates(newLat, newLng);
+      },
+      () => toast({ title: "Erro ao obter localização", description: "Verifique se você permitiu acesso à localização", variant: "destructive" })
+    );
   };
+
+  const handleMarkerDrag = (lat: number, lng: number) => {
+    setTempCoords({ lat, lng });
+    // Não atualiza as coordenadas reais imediatamente para evitar re-renderização do dialog
+  };
+
+  const applyTempCoords = () => {
+    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude;
+    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude;
+    form?.setValue(`${fieldName}.${index}.latitude`, latToApply, { shouldDirty: true, shouldValidate: true });
+    form?.setValue(`${fieldName}.${index}.longitude`, lngToApply, { shouldDirty: true, shouldValidate: true });
+    onUpdate(index, { latitude: latToApply, longitude: lngToApply });
+    if (latToApply && lngToApply) {
+      fetchAddressForCoordinates(latToApply, lngToApply);
+    }
+    setShowMap(false);
+  };
+
 
   const handlePhotoUpload = async () => {
     if (!newPhotoFile) return;
@@ -184,38 +168,58 @@ export function ArvoreItem({
             <div>
               <Label>Latitude *</Label>
               <Input
-                type="text"
-                value={form ? (form.watch(`${fieldName}.${index}.latitude`) || -23.2017).toString() : (arvore.latitude || -23.2017).toString()}
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={
+                  form
+                    ? form.watch(`${fieldName}.${index}.latitude`) ?? ""
+                    : arvore.latitude ?? ""
+                }
                 onChange={(e) => {
-                  const value = e.target.value;
-                  const newLat = parseFloat(value) || -23.2017;
+                  const raw = e.target.value.trim();
+                  const parsed = raw === "" ? undefined : Number(raw);
                   if (form) {
-                    form.setValue(`${fieldName}.${index}.latitude`, newLat);
+                    form.setValue(`${fieldName}.${index}.latitude`, parsed, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                   }
-                  onUpdate(index, { latitude: newLat });
+                  onUpdate(index, { latitude: parsed });
                 }}
                 placeholder="Ex: -23.210954"
                 data-testid={`input-latitude-${index}`}
               />
             </div>
+
             <div>
               <Label>Longitude *</Label>
               <Input
-                type="text"
-                value={form ? (form.watch(`${fieldName}.${index}.longitude`) || -47.2911).toString() : (arvore.longitude || -47.2911).toString()}
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={
+                  form
+                    ? form.watch(`${fieldName}.${index}.longitude`) ?? ""
+                    : arvore.longitude ?? ""
+                }
                 onChange={(e) => {
-                  const value = e.target.value;
-                  const newLng = parseFloat(value) || -47.2911;
+                  const raw = e.target.value.trim();
+                  const parsed = raw === "" ? undefined : Number(raw);
                   if (form) {
-                    form.setValue(`${fieldName}.${index}.longitude`, newLng);
+                    form.setValue(`${fieldName}.${index}.longitude`, parsed, {
+                      shouldDirty: true,
+                      shouldValidate: true,
+                    });
                   }
-                  onUpdate(index, { longitude: newLng });
+                  onUpdate(index, { longitude: parsed });
                 }}
                 placeholder="Ex: -47.295757"
                 data-testid={`input-longitude-${index}`}
               />
             </div>
           </div>
+
 
           {/* Map and GPS buttons */}
           <div className="flex space-x-2">
@@ -258,8 +262,9 @@ export function ArvoreItem({
                       <Input
                         type="number"
                         step="any"
-                        value={arvore.latitude}
-                        onChange={(e) => onUpdate(index, { latitude: parseFloat(e.target.value) })}
+                        inputMode="decimal"
+                        value={Number.isFinite(tempCoords.lat) ? tempCoords.lat : ""}
+                        onChange={(e) => setTempCoords((c) => ({ ...c, lat: e.target.value === "" ? Number.NaN : Number(e.target.value) }))}
                       />
                     </div>
                     <div>
@@ -267,17 +272,21 @@ export function ArvoreItem({
                       <Input
                         type="number"
                         step="any"
-                        value={arvore.longitude}
-                        onChange={(e) => onUpdate(index, { longitude: parseFloat(e.target.value) })}
+                        inputMode="decimal"
+                        value={Number.isFinite(tempCoords.lng) ? tempCoords.lng : ""}
+                        onChange={(e) => setTempCoords((c) => ({ ...c, lng: e.target.value === "" ? Number.NaN : Number(e.target.value) }))}
                       />
                     </div>
                   </div>
                   <MapComponent
                     height="400px"
-                    center={[tempCoords.lat, tempCoords.lng]}
+                    center={[
+                      Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude || -23.2109,
+                      Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude || -47.2957,
+                    ]}
                     draggableMarker={{
-                      lat: tempCoords.lat,
-                      lng: tempCoords.lng,
+                      lat: Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude || -23.2109,
+                      lng: Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude || -47.2957,
                       onDrag: handleMarkerDrag,
                     }}
                   />
@@ -289,7 +298,7 @@ export function ArvoreItem({
                       type="button"
                       variant="outline"
                       onClick={() => {
-                        setTempCoords({ lat: arvore.latitude, lng: arvore.longitude });
+                        setTempCoords({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
                         setShowMap(false);
                       }}
                       data-testid={`button-cancel-map-${index}`}

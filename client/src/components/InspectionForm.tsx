@@ -34,8 +34,8 @@ interface SpeciesIdentificationResult {
 }
 
 const arvoreSchema = z.object({
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
+  latitude: z.number().min(-90).max(90).optional(),
+  longitude: z.number().min(-180).max(180).optional(),
   endereco: z.string().optional(),
   observacao: z.string().optional(),
   especieFinal: z.string().optional(),
@@ -64,8 +64,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [speciesResults, setSpeciesResults] = useState<SpeciesIdentificationResult | null>(null);
   const [coordinates, setCoordinates] = useState({
-    lat: initialData?.lat || -23.2017,
-    lng: initialData?.lng || -47.2911,
+    lat: initialData?.lat,
+    lng: initialData?.lng,
   });
   const [address, setAddress] = useState("");
 
@@ -364,8 +364,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     const firstTree = data.arvores[0];
     const inspectionData = {
       ...data,
-      latitude: firstTree?.latitude || coordinates.lat,
-      longitude: firstTree?.longitude || coordinates.lng,
+      latitude: firstTree?.latitude || coordinates.lat || -23.2109,
+      longitude: firstTree?.longitude || coordinates.lng || -47.2957,
       endereco: firstTree?.endereco || "",
       arvores: data.arvores
     };

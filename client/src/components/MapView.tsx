@@ -46,7 +46,8 @@ export function MapView({ onNewInspection, onEditInspection }: MapViewProps) {
     }
   });
   const [selectedInspection, setSelectedInspection] = useState<InspecaoCompleta | null>(null);
-  const [mapCenter, setMapCenter] = useState<[number, number]>([-23.2017, -47.2911]);
+  const DEFAULT_CENTER: [number, number] = [-23.2109, -47.2957];
+  const [mapCenter, setMapCenter] = useState<[number, number]>(DEFAULT_CENTER);
 
   // Fetch reference data
   const { data: eas } = useQuery<Ea[]>({ queryKey: ["/api/refs/eas"] });

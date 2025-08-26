@@ -10,8 +10,8 @@ interface ArvoreFoto {
 }
 
 interface ArvoreData {
-  latitude: number;
-  longitude: number;
+  latitude: number | undefined;
+  longitude: number | undefined;
   endereco?: string;
   observacao?: string;
   especieFinal?: string;
@@ -38,14 +38,9 @@ export function ArvoresFieldArray({
   });
 
   const addArvore = () => {
-    // Use slightly randomized coordinates to avoid overlapping markers
-    const baseLatitude = -23.2017;
-    const baseLongitude = -47.2911;
-    const randomOffset = 0.001; // ~100 meters
-    
     const newArvore: ArvoreData = {
-      latitude: baseLatitude + (Math.random() - 0.5) * randomOffset,
-      longitude: baseLongitude + (Math.random() - 0.5) * randomOffset,
+      latitude: undefined,
+      longitude: undefined,
       endereco: "",
       observacao: "",
       especieFinal: "",

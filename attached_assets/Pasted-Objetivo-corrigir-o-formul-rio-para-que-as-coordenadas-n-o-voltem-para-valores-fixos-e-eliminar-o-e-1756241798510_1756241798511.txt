@@ -1,0 +1,190 @@
+Objetivo: corrigir o formulário para que as coordenadas não voltem para valores fixos e eliminar o erro fetchAddressForCoordinates is not defined.
+Projeto usa React + TypeScript + React Hook Form.
+
+Problemas atuais
+
+Existem fallbacks mágicos -23.2017 e -47.2911 em vários pontos (|| -23.2017, || -47.2911, parseFloat(x) || ...).
+
+Inputs de latitude/longitude usam esses fallbacks e convertem para string, sobrescrevendo o valor do GPS.
+
+O diálogo “Ajustar no mapa” edita arvore.latitude/longitude em vez de um estado temporário, e applyTempCoords não atualiza o RHF.
+
+A função fetchAddressForCoordinates é chamada antes de estar definida, gerando “is not defined”.
+
+MapComponent.tsx/MapView.tsx reatribuem center com coordenadas fixas a cada render.
+
+O que fazer (passo a passo e por arquivo):
+
+1) client/src/components/ArvoreItem.tsx
+
+1.1 Mova/defina esta função acima do handleLocationFromGPS (usar declaração hoisted):
+
+async function fetchAddressForCoordinates(lat: number, lng: number) {
+  try {
+    const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
+    if (response.ok) {
+      const data = await response.json();
+      onUpdate(index, { endereco: data.endereco });
+    }
+  } catch (error) {
+    console.error("Erro ao buscar endereço:", error);
+  }
+}
+
+
+1.2 Substitua toda a função handleLocationFromGPS por:
+
+const handleLocationFromGPS = () => {
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const newLat = Number(coords.latitude.toFixed(6));
+      const newLng = Number(coords.longitude.toFixed(6));
+      setTempCoords({ lat: newLat, lng: newLng });
+      if (form) {
+        form.setValue(`${fieldName}.${index}.latitude`, newLat, { shouldDirty: true, shouldValidate: true });
+        form.setValue(`${fieldName}.${index}.longitude`, newLng, { shouldDirty: true, shouldValidate: true });
+      }
+      onUpdate(index, { latitude: newLat, longitude: newLng });
+      toast({ title: "Localização obtida", description: `Coordenadas: ${newLat}, ${newLng}` });
+      fetchAddressForCoordinates(newLat, newLng);
+    },
+    () => toast({ title: "Erro ao obter localização", description: "Verifique se você permitiu acesso à localização", variant: "destructive" })
+  );
+};
+
+
+1.3 Troque os dois inputs da seção “Coordinates” (Latitude/Longitude). Remova qualquer || -23.2017 / || -47.2911 e conversões para string. Use:
+
+<Input
+  type="number"
+  step="any"
+  inputMode="decimal"
+  value={form ? form.watch(`${fieldName}.${index}.latitude`) ?? "" : arvore.latitude ?? ""}
+  onChange={(e) => {
+    const raw = e.target.value.trim();
+    const parsed = raw === "" ? undefined : Number(raw);
+    form?.setValue(`${fieldName}.${index}.latitude`, parsed, { shouldDirty: true, shouldValidate: true });
+    onUpdate(index, { latitude: parsed });
+  }}
+/>
+<Input
+  type="number"
+  step="any"
+  inputMode="decimal"
+  value={form ? form.watch(`${fieldName}.${index}.longitude`) ?? "" : arvore.longitude ?? ""}
+  onChange={(e) => {
+    const raw = e.target.value.trim();
+    const parsed = raw === "" ? undefined : Number(raw);
+    form?.setValue(`${fieldName}.${index}.longitude`, parsed, { shouldDirty: true, shouldValidate: true });
+    onUpdate(index, { longitude: parsed });
+  }}
+/>
+
+
+1.4 No diálogo “Ajustar no mapa”, os inputs devem editar tempCoords (não arvore). Troque-os por:
+
+<Input
+  type="number"
+  step="any"
+  inputMode="decimal"
+  value={Number.isFinite(tempCoords.lat) ? tempCoords.lat : ""}
+  onChange={(e) => setTempCoords((c) => ({ ...c, lat: e.target.value === "" ? Number.NaN : Number(e.target.value) }))}
+/>
+<Input
+  type="number"
+  step="any"
+  inputMode="decimal"
+  value={Number.isFinite(tempCoords.lng) ? tempCoords.lng : ""}
+  onChange={(e) => setTempCoords((c) => ({ ...c, lng: e.target.value === "" ? Number.NaN : Number(e.target.value) }))}
+/>
+
+
+1.5 Substitua applyTempCoords por:
+
+const applyTempCoords = () => {
+  const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude;
+  const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude;
+  form?.setValue(`${fieldName}.${index}.latitude`, latToApply, { shouldDirty: true, shouldValidate: true });
+  form?.setValue(`${fieldName}.${index}.longitude`, lngToApply, { shouldDirty: true, shouldValidate: true });
+  onUpdate(index, { latitude: latToApply, longitude: lngToApply });
+  fetchAddressForCoordinates(latToApply, lngToApply);
+  setShowMap(false);
+};
+
+
+1.6 No <MapComponent> dentro do diálogo, garanta que não passemos NaN:
+
+<MapComponent
+  height="400px"
+  center={[
+    Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude,
+    Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude,
+  ]}
+  draggableMarker={{
+    lat: Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude,
+    lng: Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude,
+    onDrag: handleMarkerDrag,
+  }}
+/>
+
+2) Remover fallbacks mágicos pelo projeto
+
+Execute refatoração no client/src (exceto assets/backups) para remover:
+
+|| -23.2017 e || -47.2911
+
+parseFloat(valor) || -23.2017 / parseFloat(valor) || -47.2911
+
+Regras de substituição:
+
+Para exibição em input: use valor ?? "".
+
+Para parse em onChange:
+
+const raw = e.target.value.trim();
+const parsed = raw === "" ? undefined : Number(raw);
+
+3) client/src/components/ArvoresFieldArray.tsx
+
+Remover const baseLatitude = -23.2017 (e qualquer baseLongitude fixo).
+
+Ao criar uma nova árvore use { latitude: undefined, longitude: undefined, ... } e não reatribua defaults em re-renders.
+
+4) client/src/components/InspectionForm.tsx (e variantes .bak se estiverem ativas)
+
+Onde houver initialData?.lat || -23.2017/initialData?.lng || -47.2911, trocar por initialData?.lat ?? "" e initialData?.lng ?? "" (somente para exibição).
+
+Se alimentar estado inicial, use undefined quando não houver dado.
+
+5) client/src/components/MapComponent.tsx e/ou MapView.tsx
+
+Se existir center = [-23.2017, -47.2911], transforme isso em um DEFAULT_CENTER usado apenas no useState inicial:
+
+const DEFAULT_CENTER: [number, number] = [-23.2109, -47.2957]; // pode manter este default
+const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
+
+
+Não reatribuir center com valores fixos em cada render. Se quiser centralizar quando receber coords válidas:
+
+useEffect(() => {
+  if (latitude && longitude && Number.isFinite(latitude) && Number.isFinite(longitude)) {
+    setCenter([latitude, longitude]);
+  }
+}, [latitude, longitude]);
+
+6) Tipagem
+
+Garanta que latitude e longitude aceitem number | undefined nas interfaces/types.
+
+7) Testes de aceitação
+
+Clicar Usar GPS atualiza os inputs e o mapa.
+
+Editar manualmente os campos persiste sem voltar para defaults.
+
+Arrastar o marcador e clicar Aplicar atualiza inputs + estado + endereço.
+
+Não há mais “fetchAddressForCoordinates is not defined”.
+
+Busca global não possui mais || -23.2017 e || -47.2911 em código ativo.
