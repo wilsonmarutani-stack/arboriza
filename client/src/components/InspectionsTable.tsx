@@ -316,6 +316,7 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                     <TableHead>Data/EA</TableHead>
                     <TableHead>Localização</TableHead>
                     <TableHead>Espécie</TableHead>
+                    <TableHead className="text-center">Qtd. Árvores</TableHead>
                     <TableHead>Prioridade</TableHead>
                     <TableHead>Ações</TableHead>
                   </TableRow>
@@ -364,6 +365,11 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                               Confiança: {inspecao.especieConfiancaMedia.toFixed(0)}%
                             </div>
                           )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <div className="text-sm font-medium text-gray-900">
+                          {inspecao.totalArvores ?? 0}
                         </div>
                       </TableCell>
                       <TableCell>

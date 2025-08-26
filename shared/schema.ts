@@ -188,6 +188,7 @@ export type InspecaoCompleta = Inspecao & {
   subestacao: Subestacao;
   candidatos: EspecieCandidato[];
   arvores?: ArvoreCompleta[];
+  totalArvores?: number;
 };
 
 export type ArvoreCompleta = Arvore & {

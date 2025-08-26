@@ -146,6 +146,11 @@ export class DatabaseStorage implements IStorage {
         municipio: municipios,
         alimentador: alimentadores,
         subestacao: subestacoes,
+        totalArvores: sql<number>`(
+          SELECT COUNT(*)::int 
+          FROM ${arvores} 
+          WHERE ${arvores.inspecaoId} = ${inspecoes.id}
+        )`.as('total_arvores'),
       })
       .from(inspecoes)
       .leftJoin(eas, eq(inspecoes.eaId, eas.id))
@@ -179,6 +184,7 @@ export class DatabaseStorage implements IStorage {
           alimentador: row.alimentador!,
           subestacao: row.subestacao!,
           candidatos,
+          totalArvores: row.totalArvores,
         };
       })
     );
