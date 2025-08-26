@@ -42,29 +42,36 @@ export function ArvoreItem({
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude, lng: arvore.longitude });
 
-  // Sincronizar coordenadas temporárias quando o mapa abre
+  // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
       setTempCoords({ lat: arvore.latitude, lng: arvore.longitude });
     }
-  }, [showMap, arvore.latitude, arvore.longitude]);
+  }, [showMap]); // Removido arvore.latitude, arvore.longitude para evitar loops
 
   const handleLocationFromGPS = () => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
+          const newLat = position.coords.latitude;
+          const newLng = position.coords.longitude;
+          
+          // Atualizar coordenadas temporárias
+          setTempCoords({ lat: newLat, lng: newLng });
+          
+          // Atualizar o formulário
           onUpdate(index, {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude
+            latitude: newLat,
+            longitude: newLng
           });
-          // Abrir o mapa automaticamente após obter GPS
-          setShowMap(true);
+          
           toast({
             title: "Localização obtida",
             description: "Coordenadas atualizadas com sua localização atual"
           });
+          
           // Fetch address for the new coordinates
-          fetchAddressForCoordinates(position.coords.latitude, position.coords.longitude);
+          fetchAddressForCoordinates(newLat, newLng);
         },
         (error) => {
           toast({

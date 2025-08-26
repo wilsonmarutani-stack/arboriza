@@ -55,7 +55,17 @@ export function ArvoresFieldArray({
 
   const updateArvore = (index: number, updates: Partial<ArvoreData>) => {
     const currentArvore = fields[index] as unknown as ArvoreData;
-    update(index, { ...currentArvore, ...updates });
+    const newArvore = { ...currentArvore, ...updates };
+    
+    // Debug: Log coordinate updates
+    if (updates.latitude !== undefined || updates.longitude !== undefined) {
+      console.log(`Atualizando árvore ${index}:`, { 
+        old: { lat: currentArvore.latitude, lng: currentArvore.longitude },
+        new: { lat: newArvore.latitude, lng: newArvore.longitude }
+      });
+    }
+    
+    update(index, newArvore);
   };
 
   return (
