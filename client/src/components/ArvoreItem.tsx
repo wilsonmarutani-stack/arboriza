@@ -46,6 +46,13 @@ export function ArvoreItem({
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude || Number.NaN, lng: arvore.longitude || Number.NaN });
 
+  // Registrar os campos no RHF
+  useEffect(() => {
+    if (!form) return;
+    form.register(`${fieldName}.${index}.latitude`);
+    form.register(`${fieldName}.${index}.longitude`);
+  }, [form, fieldName, index]);
+
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
@@ -171,11 +178,7 @@ export function ArvoreItem({
                 type="number"
                 step="any"
                 inputMode="decimal"
-                value={
-                  form
-                    ? form.watch(`${fieldName}.${index}.latitude`) ?? ""
-                    : arvore.latitude ?? ""
-                }
+                value={(form?.watch(`${fieldName}.${index}.latitude`) ?? arvore.latitude) ?? ""}
                 onChange={(e) => {
                   const raw = e.target.value.trim();
                   const parsed = raw === "" ? undefined : Number(raw);
@@ -198,11 +201,7 @@ export function ArvoreItem({
                 type="number"
                 step="any"
                 inputMode="decimal"
-                value={
-                  form
-                    ? form.watch(`${fieldName}.${index}.longitude`) ?? ""
-                    : arvore.longitude ?? ""
-                }
+                value={(form?.watch(`${fieldName}.${index}.longitude`) ?? arvore.longitude) ?? ""}
                 onChange={(e) => {
                   const raw = e.target.value.trim();
                   const parsed = raw === "" ? undefined : Number(raw);
