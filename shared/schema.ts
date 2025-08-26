@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, real, integer, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, real, integer, boolean, doublePrecision, numeric } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -69,12 +69,12 @@ export const especieCandidatos = pgTable("especie_candidatos", {
 export const arvores = pgTable("arvores", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   inspecaoId: varchar("inspecao_id").references(() => inspecoes.id).notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
   endereco: text("endereco"),
   observacao: text("observacao"),
   especieFinal: text("especie_final"),
-  especieConfiancaMedia: real("especie_confianca_media"),
+  especieConfiancaMedia: numeric("especie_confianca_media"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -83,7 +83,7 @@ export const arvoreFotos = pgTable("arvore_fotos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   arvoreId: varchar("arvore_id").references(() => arvores.id).notNull(),
   url: text("url").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 // Insert schemas
