@@ -156,7 +156,8 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(eas, eq(inspecoes.eaId, eas.id))
       .leftJoin(municipios, eq(inspecoes.municipioId, municipios.id))
       .leftJoin(alimentadores, eq(inspecoes.alimentadorId, alimentadores.id))
-      .leftJoin(subestacoes, eq(inspecoes.subestacaoId, subestacoes.id));
+      .leftJoin(subestacoes, eq(inspecoes.subestacaoId, subestacoes.id))
+      .$dynamic();
 
     if (conditions.length > 0) {
       queryBuilder = queryBuilder.where(and(...conditions));
