@@ -196,17 +196,8 @@ export function ArvoreItem({
             </div>
           </div>
 
-          {/* GPS and Map buttons */}
+          {/* Map button */}
           <div className="flex space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleLocationFromGPS}
-              data-testid={`button-gps-${index}`}
-            >
-              <MapPin className="w-4 h-4 mr-2" />
-              Usar GPS
-            </Button>
             <Dialog open={showMap} onOpenChange={(open) => {
               // Só permite fechar se explicitamente solicitado
               if (!open) {

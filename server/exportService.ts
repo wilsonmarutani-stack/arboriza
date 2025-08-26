@@ -41,19 +41,22 @@ export class ExportService {
     ]);
 
     const csvContent = [headers, ...rows]
-      .map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(","))
+      .map(row => row.map(cell => `"${(cell || '').toString().replace(/"/g, '""')}"`).join(","))
       .join("\n");
 
     return csvContent;
   }
 
-  // Export to KML for Google Earth
+  // Export to KML for Google Earth - now exports individual trees instead of inspections
   async exportToKML(inspecoes: InspecaoCompleta[]): Promise<string> {
+    // Import storage to fetch tree data
+    const { storage } = await import("./storage");
+    
     const kmlHeader = `<?xml version="1.0" encoding="UTF-8"?>
 <kml xmlns="http://www.opengis.net/kml/2.2">
   <Document>
-    <name>Inspeções de Arborização Urbana</name>
-    <description>Pontos de inspeção de árvores urbanas</description>
+    <name>Árvores - Arborização Urbana</name>
+    <description>Localização individual das árvores inspecionadas</description>
     
     <!-- Tree Icon Style -->
     <Style id="tree-icon">
@@ -94,39 +97,49 @@ export class ExportService {
     </Style>
 `;
 
-    const placemarks = inspecoes.map(inspecao => {
-      const styleId = `${inspecao.prioridade}-prioridade`;
-      const description = `
-        <![CDATA[
-          <b>Espécie:</b> ${inspecao.especieFinal || "Não identificada"}<br/>
-          <b>EA:</b> ${inspecao.ea.nome}<br/>
-          <b>Município:</b> ${inspecao.municipio.nome}<br/>
-          <b>Alimentador:</b> ${inspecao.alimentador.codigo}<br/>
-          <b>Subestação:</b> ${inspecao.subestacao.nome}<br/>
-          <b>Endereço:</b> ${inspecao.endereco || "Não informado"}<br/>
-          <b>Prioridade:</b> ${inspecao.prioridade}<br/>
-          <b>Data:</b> ${inspecao.dataInspecao.toLocaleDateString("pt-BR")}<br/>
-          ${inspecao.observacoes ? `<b>Observações:</b> ${inspecao.observacoes}<br/>` : ""}
-          ${inspecao.fotoUrl ? `<b>Foto:</b> <a href="${inspecao.fotoUrl}">Ver imagem</a><br/>` : ""}
-        ]]>
-      `;
+    // Get all trees for each inspection and create placemarks
+    const allPlacemarks = [];
+    
+    for (const inspecao of inspecoes) {
+      const trees = await storage.getArvoresByInspecao(inspecao.id);
+      
+      for (const tree of trees) {
+        const styleId = `${inspecao.prioridade}-prioridade`;
+        const description = `
+          <![CDATA[
+            <b>Espécie:</b> ${tree.especieFinal || "Não identificada"}<br/>
+            <b>EA:</b> ${inspecao.ea.nome}<br/>
+            <b>Município:</b> ${inspecao.municipio.nome}<br/>
+            <b>Alimentador:</b> ${inspecao.alimentador.codigo}<br/>
+            <b>Subestação:</b> ${inspecao.subestacao.nome}<br/>
+            <b>Endereço:</b> ${tree.endereco || "Não informado"}<br/>
+            <b>Prioridade:</b> ${inspecao.prioridade}<br/>
+            <b>Data:</b> ${inspecao.dataInspecao.toLocaleDateString("pt-BR")}<br/>
+            <b>Número da Nota:</b> ${inspecao.numeroNota}<br/>
+            ${tree.observacao ? `<b>Observações:</b> ${tree.observacao}<br/>` : ""}
+            ${tree.especieConfiancaMedia ? `<b>Confiança IA:</b> ${tree.especieConfiancaMedia.toFixed(1)}%<br/>` : ""}
+          ]]>
+        `;
 
-      return `
+        const placemark = `
     <Placemark>
-      <name>${inspecao.especieFinal || `Árvore ${inspecao.numeroNota}`}</name>
+      <name>${tree.especieFinal || `Árvore - ${inspecao.numeroNota}`}</name>
       <description>${description}</description>
       <styleUrl>#${styleId}</styleUrl>
       <Point>
-        <coordinates>${inspecao.longitude},${inspecao.latitude},0</coordinates>
+        <coordinates>${tree.longitude},${tree.latitude},0</coordinates>
       </Point>
     </Placemark>`;
-    }).join("");
+        
+        allPlacemarks.push(placemark);
+      }
+    }
 
     const kmlFooter = `
   </Document>
 </kml>`;
 
-    return kmlHeader + placemarks + kmlFooter;
+    return kmlHeader + allPlacemarks.join("") + kmlFooter;
   }
 
   // Generate simple PDF report
