@@ -15,7 +15,7 @@ import { MapComponent } from "./MapComponent";
 import { ObjectUploader } from "./ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { insertInspecaoSchema, type Ea, type Municipio, type Alimentador, type Subestacao } from "@shared/schema";
-import { identificarEspecie } from "@/services/ia";
+import { identificarEspecie, identificarEspecieOpenAI, imageUrlToBase64 } from "@/services/ia";
 import { X, Camera, Brain, Save, MapPin } from "lucide-react";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -271,7 +271,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   };
 
   // --------- IA (Pl@ntNet) ----------
-  const identifySpecies = async () => {
+  const identifySpeciesPlantNet = async () => {
     if (!uploadedImageUrl && !photoPreview) {
       toast({ title: "Erro", description: "Faça upload de uma foto primeiro", variant: "destructive" });
       return;
@@ -285,13 +285,112 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       form.setValue("especieConfiancaMedia", result.confianca_media);
       toast({
         title: "Espécie identificada",
-        description: `${result.especie_sugerida} com ${result.confianca_media?.toFixed(0) || 0}% via ${result.fonte || "IA"}`,
+        description: `${result.especie_sugerida} com ${result.confianca_media?.toFixed(0) || 0}% via PlantNet`,
       });
     } catch (e) {
-      console.error("Erro na identificação:", e);
+      console.error("Erro na identificação PlantNet:", e);
       toast({
         title: "Erro na identificação",
-        description: "Não foi possível identificar a espécie. Verifique sua conexão e tente novamente.",
+        description: "Não foi possível identificar a espécie com PlantNet. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsIdentifying(false);
+    }
+  };
+
+  const identifySpeciesOpenAI = async () => {
+    if (!uploadedImageUrl && !photoPreview) {
+      toast({ title: "Erro", description: "Faça upload de uma foto primeiro", variant: "destructive" });
+      return;
+    }
+    setIsIdentifying(true);
+    try {
+      const imageUrl = uploadedImageUrl || photoPreview!;
+      const base64Image = await imageUrlToBase64(imageUrl);
+      const result = await identificarEspecieOpenAI(base64Image);
+      setSpeciesResults(result);
+      form.setValue("especieFinal", result.especie_sugerida);
+      form.setValue("especieConfiancaMedia", result.confianca_media);
+      toast({
+        title: "Espécie identificada",
+        description: `${result.especie_sugerida} com ${result.confianca_media?.toFixed(0) || 0}% via OpenAI`,
+      });
+    } catch (e) {
+      console.error("Erro na identificação OpenAI:", e);
+      toast({
+        title: "Erro na identificação",
+        description: "Não foi possível identificar a espécie com OpenAI. Verifique sua chave de API.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsIdentifying(false);
+    }
+  };
+
+  // Functions for specific tree identification
+  const identifySpeciesForTreePlantNet = async (index: number) => {
+    const arvores = form.getValues("arvores");
+    const arvore = arvores[index];
+    
+    if (!arvore.fotos || arvore.fotos.length === 0) {
+      toast({ title: "Erro", description: "Adicione uma foto da árvore primeiro", variant: "destructive" });
+      return;
+    }
+
+    setIsIdentifying(true);
+    try {
+      const imageUrl = arvore.fotos[0].url;
+      const result = await identificarEspecie(imageUrl, []);
+      
+      // Update specific tree data
+      form.setValue(`arvores.${index}.especieFinal`, result.especie_sugerida);
+      form.setValue(`arvores.${index}.especieConfiancaMedia`, result.confianca_media);
+      
+      toast({
+        title: "Espécie identificada",
+        description: `Árvore ${index + 1}: ${result.especie_sugerida} com ${result.confianca_media?.toFixed(0) || 0}% via PlantNet`,
+      });
+    } catch (e) {
+      console.error("Erro na identificação PlantNet:", e);
+      toast({
+        title: "Erro na identificação",
+        description: "Não foi possível identificar a espécie com PlantNet. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsIdentifying(false);
+    }
+  };
+
+  const identifySpeciesForTreeOpenAI = async (index: number) => {
+    const arvores = form.getValues("arvores");
+    const arvore = arvores[index];
+    
+    if (!arvore.fotos || arvore.fotos.length === 0) {
+      toast({ title: "Erro", description: "Adicione uma foto da árvore primeiro", variant: "destructive" });
+      return;
+    }
+
+    setIsIdentifying(true);
+    try {
+      const imageUrl = arvore.fotos[0].url;
+      const base64Image = await imageUrlToBase64(imageUrl);
+      const result = await identificarEspecieOpenAI(base64Image);
+      
+      // Update specific tree data
+      form.setValue(`arvores.${index}.especieFinal`, result.especie_sugerida);
+      form.setValue(`arvores.${index}.especieConfiancaMedia`, result.confianca_media);
+      
+      toast({
+        title: "Espécie identificada",
+        description: `Árvore ${index + 1}: ${result.especie_sugerida} com ${result.confianca_media?.toFixed(0) || 0}% via OpenAI`,
+      });
+    } catch (e) {
+      console.error("Erro na identificação OpenAI:", e);
+      toast({
+        title: "Erro na identificação",
+        description: "Não foi possível identificar a espécie com OpenAI. Verifique sua chave de API.",
         variant: "destructive",
       });
     } finally {
@@ -557,12 +656,11 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
             control={form.control}
             name="arvores"
             form={form}
-            onIdentifySpecies={(index) => {
-              // TODO: Implement species identification for specific tree
-              toast({
-                title: "Em desenvolvimento", 
-                description: "Identificação de espécie por árvore em desenvolvimento"
-              });
+            onIdentifySpeciesPlantNet={(index) => {
+              identifySpeciesForTreePlantNet(index);
+            }}
+            onIdentifySpeciesOpenAI={(index) => {
+              identifySpeciesForTreeOpenAI(index);
             }}
           />
 

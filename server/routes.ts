@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
-// import { identifyTreeSpecies } from "./openaiService"; // Removed - using PlantNet instead
+import { identifyTreeSpecies } from "./openaiService";
 import { exportService } from "./exportService";
 import { insertInspecaoSchema, insertEspecieCandidatoSchema, insertArvoreSchema } from "@shared/schema";
 import multer from "multer";
@@ -284,8 +284,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // OpenAI species identification using base64 images
+  app.post("/api/ia/openai/identificar-especie", async (req, res) => {
+    try {
+      const { imageBase64 } = req.body;
+      
+      if (!imageBase64) {
+        return res.status(400).json({ error: "imageBase64 é obrigatória" });
+      }
+
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ error: "OPENAI_API_KEY não configurada" });
+      }
+
+      // Call OpenAI service
+      const result = await identifyTreeSpecies(imageBase64);
+      
+      res.json(result);
+    } catch (error: any) {
+      console.error("Erro na identificação OpenAI:", error);
+      res.status(500).json({ 
+        error: "Falha na identificação com OpenAI", 
+        detail: error.message 
+      });
+    }
+  });
+
   // Object storage based species identification (for cloud storage)
-  // Removed OpenAI cloud identification - using PlantNet instead
 
   // Save uploaded tree image with ACL policy
   app.put("/api/tree-images", async (req, res) => {

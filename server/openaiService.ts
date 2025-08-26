@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 // the newest OpenAI model is "gpt-5" which was released August 7, 2025. do not change this unless explicitly requested by the user
 const openai = new OpenAI({ 
-  apiKey: process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY_ENV_VAR || "sk-default-key"
+  apiKey: process.env.OPENAI_API_KEY
 });
 
 export interface SpeciesCandidate {
@@ -14,6 +14,7 @@ export interface SpeciesIdentificationResult {
   especie_sugerida: string;
   candidatos: SpeciesCandidate[];
   confianca_media: number;
+  fonte: string;
 }
 
 export async function identifyTreeSpecies(imageBase64: string): Promise<SpeciesIdentificationResult> {
@@ -54,13 +55,22 @@ export async function identifyTreeSpecies(imageBase64: string): Promise<SpeciesI
     const result = JSON.parse(response.choices[0].message.content || "{}");
     
     // Validate and format response
+    const candidatos = (result.candidatos || []).slice(0, 5).map((c: any) => ({
+      nome: c.nome || "Desconhecido",
+      confianca: Math.max(0, Math.min(100, c.confianca || 0))
+    }));
+
+    // Calculate average confidence from top 3 candidates
+    const top3 = candidatos.slice(0, 3);
+    const confianca_media = top3.length > 0 
+      ? Math.round(top3.reduce((acc: number, c: any) => acc + c.confianca, 0) / top3.length)
+      : 0;
+
     const formattedResult: SpeciesIdentificationResult = {
-      especie_sugerida: result.especie_sugerida || "Espécie não identificada",
-      candidatos: (result.candidatos || []).slice(0, 5).map((c: any) => ({
-        nome: c.nome || "Desconhecido",
-        confianca: Math.max(0, Math.min(100, c.confianca || 0))
-      })),
-      confianca_media: Math.max(0, Math.min(100, result.confianca_media || 0))
+      especie_sugerida: result.especie_sugerida || candidatos[0]?.nome || "Espécie não identificada",
+      candidatos,
+      confianca_media,
+      fonte: "OpenAI GPT-5"
     };
 
     return formattedResult;
