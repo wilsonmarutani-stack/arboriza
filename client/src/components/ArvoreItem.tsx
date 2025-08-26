@@ -49,6 +49,8 @@ export function ArvoreItem({
             latitude: position.coords.latitude,
             longitude: position.coords.longitude
           });
+          // Abrir o mapa automaticamente após obter GPS
+          setShowMap(true);
           toast({
             title: "Localização obtida",
             description: "Coordenadas atualizadas com sua localização atual"
@@ -175,34 +177,59 @@ export function ArvoreItem({
               <MapPin className="w-4 h-4 mr-2" />
               Usar GPS
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setShowMap(!showMap)}
-              data-testid={`button-map-${index}`}
-            >
-              <Map className="w-4 h-4 mr-2" />
-              {showMap ? "Esconder mapa" : "Ajustar no mapa"}
-            </Button>
+            <Dialog open={showMap} onOpenChange={setShowMap}>
+              <DialogTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  data-testid={`button-map-${index}`}
+                >
+                  <Map className="w-4 h-4 mr-2" />
+                  Ajustar no mapa
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl">
+                <DialogHeader>
+                  <DialogTitle>Ajustar Posição da Árvore {index + 1}</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Latitude</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={arvore.latitude}
+                        onChange={(e) => onUpdate(index, { latitude: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                    <div>
+                      <Label>Longitude</Label>
+                      <Input
+                        type="number"
+                        step="any"
+                        value={arvore.longitude}
+                        onChange={(e) => onUpdate(index, { longitude: parseFloat(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                  <MapComponent
+                    height="400px"
+                    center={[arvore.latitude, arvore.longitude]}
+                    draggableMarker={{
+                      lat: arvore.latitude,
+                      lng: arvore.longitude,
+                      onDrag: handleMarkerDrag,
+                    }}
+                  />
+                  <p className="text-sm text-gray-600">
+                    Arraste o marcador para ajustar a posição exata da árvore ou digite as coordenadas nos campos acima.
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
-          {/* Interactive Map */}
-          {showMap && (
-            <div>
-              <Label>Ajustar posição no mapa</Label>
-              <MapComponent
-                height="300px"
-                center={[arvore.latitude, arvore.longitude]}
-                draggableMarker={{
-                  lat: arvore.latitude,
-                  lng: arvore.longitude,
-                  onDrag: handleMarkerDrag,
-                }}
-                className="mt-2"
-              />
-              <p className="text-xs text-gray-500 mt-2">Arraste o marcador para ajustar a posição exata da árvore</p>
-            </div>
-          )}
 
           {/* Address */}
           <div>
