@@ -48,7 +48,6 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const [showCameraOptions, setShowCameraOptions] = useState(false);
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [speciesResults, setSpeciesResults] = useState<SpeciesIdentificationResult | null>(null);
-  const [selectedOrgans, setSelectedOrgans] = useState<string[]>(["leaf", "flower", "fruit", "bark", "habit"]);
   const [coordinates, setCoordinates] = useState({
     lat: initialData?.lat || -23.2017,
     lng: initialData?.lng || -47.2911,
@@ -250,7 +249,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     setIsIdentifying(true);
     try {
       const imageUrl = uploadedImageUrl || photoPreview!;
-      const result = await identificarEspecie(imageUrl, selectedOrgans);
+      const result = await identificarEspecie(imageUrl, []);
       setSpeciesResults(result);
       form.setValue("especieFinal", result.especie_sugerida);
       form.setValue("especieConfiancaMedia", result.confianca_media);
@@ -598,36 +597,6 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
               <CardTitle>Informações da Árvore</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Plant Organs Selection for AI */}
-              <div className="space-y-4">
-                <Label className="text-lg font-medium">O que aparece na foto?</Label>
-                <p className="text-sm text-gray-600">Selecione as partes da planta visíveis na foto para melhorar a identificação</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {[
-                    { id: "leaf", label: "Folha", emoji: "🍃" },
-                    { id: "flower", label: "Flor", emoji: "🌸" },
-                    { id: "fruit", label: "Fruto", emoji: "🍎" },
-                    { id: "bark", label: "Casca", emoji: "🌳" },
-                    { id: "habit", label: "Hábito", emoji: "🌲" },
-                  ].map((organ) => (
-                    <div key={organ.id} className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-gray-50">
-                      <Checkbox
-                        id={organ.id}
-                        checked={selectedOrgans.includes(organ.id)}
-                        onCheckedChange={(checked) => {
-                          if (checked) setSelectedOrgans((prev) => [...prev, organ.id]);
-                          else setSelectedOrgans((prev) => prev.filter((o) => o !== organ.id));
-                        }}
-                        data-testid={`checkbox-organ-${organ.id}`}
-                      />
-                      <Label htmlFor={organ.id} className="flex items-center space-x-2 cursor-pointer">
-                        <span className="text-lg">{organ.emoji}</span>
-                        <span className="text-sm">{organ.label}</span>
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
 
               {/* Photo Upload */}
               <div>
