@@ -59,15 +59,25 @@ export function ArvoresFieldArray({
     const currentArvore = fields[index] as unknown as ArvoreData;
     const newArvore = { ...currentArvore, ...updates };
     
+    console.log(`updateArvore chamado:`, { index, updates, currentArvore, newArvore });
+    
     // Força atualização do form para garantir que os valores sejam persistidos
     if (updates.latitude !== undefined || updates.longitude !== undefined) {
       form.setValue(`arvores.${index}.latitude`, newArvore.latitude);
       form.setValue(`arvores.${index}.longitude`, newArvore.longitude);
       
+      console.log(`Form setValue executado - lat: ${newArvore.latitude}, lng: ${newArvore.longitude}`);
+      
       // Se endereço for passado, também atualiza
       if (updates.endereco !== undefined) {
         form.setValue(`arvores.${index}.endereco`, updates.endereco);
       }
+      
+      // Verificar o que está no form após setValue
+      setTimeout(() => {
+        const formData = form.getValues();
+        console.log(`Valores do form após setValue:`, formData.arvores[index]);
+      }, 50);
     }
     
     update(index, newArvore);

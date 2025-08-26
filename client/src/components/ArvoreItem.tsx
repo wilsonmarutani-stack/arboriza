@@ -56,6 +56,8 @@ export function ArvoreItem({
           const newLat = position.coords.latitude;
           const newLng = position.coords.longitude;
           
+          console.log(`GPS obtido - Árvore ${index}: lat=${newLat}, lng=${newLng}`);
+          console.log(`Coordenadas atuais da árvore:`, arvore);
           
           // Atualizar coordenadas temporárias
           setTempCoords({ lat: newLat, lng: newLng });
@@ -171,9 +173,9 @@ export function ArvoreItem({
               <Input
                 type="number"
                 step="any"
-                value={arvore.latitude}
+                value={arvore.latitude || -23.2017}
                 onChange={(e) => {
-                  const newLat = parseFloat(e.target.value);
+                  const newLat = parseFloat(e.target.value) || -23.2017;
                   onUpdate(index, { latitude: newLat });
                 }}
                 data-testid={`input-latitude-${index}`}
@@ -184,9 +186,9 @@ export function ArvoreItem({
               <Input
                 type="number"
                 step="any"
-                value={arvore.longitude}
+                value={arvore.longitude || -47.2911}
                 onChange={(e) => {
-                  const newLng = parseFloat(e.target.value);
+                  const newLng = parseFloat(e.target.value) || -47.2911;
                   onUpdate(index, { longitude: newLng });
                 }}
                 data-testid={`input-longitude-${index}`}
