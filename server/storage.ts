@@ -151,6 +151,22 @@ export class DatabaseStorage implements IStorage {
           FROM ${arvores} 
           WHERE ${arvores.inspecaoId} = ${inspecoes.id}
         )`.as('total_arvores'),
+        primeiraEspecie: sql<string>`(
+          SELECT ${arvores.especieFinal}
+          FROM ${arvores} 
+          WHERE ${arvores.inspecaoId} = ${inspecoes.id} 
+          AND ${arvores.especieFinal} IS NOT NULL 
+          AND ${arvores.especieFinal} != ''
+          LIMIT 1
+        )`.as('primeira_especie'),
+        especieConfianca: sql<number>`(
+          SELECT ${arvores.especieConfiancaMedia}
+          FROM ${arvores} 
+          WHERE ${arvores.inspecaoId} = ${inspecoes.id} 
+          AND ${arvores.especieFinal} IS NOT NULL 
+          AND ${arvores.especieFinal} != ''
+          LIMIT 1
+        )`.as('especie_confianca'),
       })
       .from(inspecoes)
       .leftJoin(eas, eq(inspecoes.eaId, eas.id))
@@ -180,6 +196,9 @@ export class DatabaseStorage implements IStorage {
         const candidatos = await this.getEspecieCandidatos(row.inspecao.id);
         return {
           ...row.inspecao,
+          // Override inspection species with tree species if available
+          especieFinal: row.primeiraEspecie || row.inspecao.especieFinal,
+          especieConfiancaMedia: row.especieConfianca || row.inspecao.especieConfiancaMedia,
           ea: row.ea!,
           municipio: row.municipio!,
           alimentador: row.alimentador!,
