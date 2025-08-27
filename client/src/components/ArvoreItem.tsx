@@ -75,23 +75,28 @@ export function ArvoreItem({
     form.register(`${fieldName}.${index}.observacao`);
   }, [form, fieldName, index]);
 
-  // hidrata o RHF com os valores atuais de 'arvore' quando ainda não há valor
+  // hidrata o RHF com os valores atuais de 'arvore' apenas na inicialização
   useEffect(() => {
     if (!form) return;
     const latPath = `${fieldName}.${index}.latitude`;
     const lngPath = `${fieldName}.${index}.longitude`;
     const obsPath = `${fieldName}.${index}.observacao`;
 
-    if (form.getValues(latPath) == null && arvore.latitude != null) {
+    const currentLat = form.getValues(latPath);
+    const currentLng = form.getValues(lngPath);
+    const currentObs = form.getValues(obsPath);
+
+    // Só hidrata se o campo do formulário está vazio/undefined E temos um valor no arvore
+    if ((currentLat === undefined || currentLat === null || currentLat === '') && arvore.latitude != null) {
       form.setValue(latPath, arvore.latitude, { shouldDirty: false, shouldValidate: false });
     }
-    if (form.getValues(lngPath) == null && arvore.longitude != null) {
+    if ((currentLng === undefined || currentLng === null || currentLng === '') && arvore.longitude != null) {
       form.setValue(lngPath, arvore.longitude, { shouldDirty: false, shouldValidate: false });
     }
-    if (form.getValues(obsPath) == null && arvore.observacao != null) {
+    if ((currentObs === undefined || currentObs === null || currentObs === '') && arvore.observacao != null) {
       form.setValue(obsPath, arvore.observacao, { shouldDirty: false, shouldValidate: false });
     }
-  }, [form, fieldName, index, arvore.latitude, arvore.longitude, arvore.observacao]);
+  }, [form, fieldName, index]);
 
   function useDebouncedEffect(fn: () => void, deps: any[], delay: number) {
     useEffect(() => {
@@ -101,14 +106,22 @@ export function ArvoreItem({
   }
   
     const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
+  const latWatch = form?.watch(`${fieldName}.${index}.latitude`);
+  const lngWatch = form?.watch(`${fieldName}.${index}.longitude`);
 
   useDebouncedEffect(() => {
     const updates: Partial<typeof arvore> = {};
     if (obsWatch !== undefined && obsWatch !== arvore.observacao) {
       updates.observacao = obsWatch;
     }
+    if (latWatch !== undefined && latWatch !== arvore.latitude) {
+      updates.latitude = latWatch;
+    }
+    if (lngWatch !== undefined && lngWatch !== arvore.longitude) {
+      updates.longitude = lngWatch;
+    }
     if (Object.keys(updates).length) onUpdate(index, updates);
-  }, [obsWatch], 250);
+  }, [obsWatch, latWatch, lngWatch], 250);
 
 
   
@@ -116,21 +129,7 @@ export function ArvoreItem({
     // 1) Preferir coordenadas do cabeçalho, se disponíveis
     if (gpsCoords && Number.isFinite(gpsCoords.lat) && Number.isFinite(gpsCoords.lng)) {
       const { lat, lng } = gpsCoords;
-
-      // Update form values
-      if (form) {
-        form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
-        form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
-      }
-      
-      // Update component state
-      onUpdate(index, { latitude: lat, longitude: lng });
-      
-      // Fetch address for coordinates
-      fetchAddressForCoordinates(lat, lng);
-      
-      // Show success message
-      toast({ title: "Coordenadas aplicadas", description: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
+      applyCoordinates(lat, lng, "Coordenadas aplicadas");
       return;
     }
 
@@ -144,21 +143,7 @@ export function ArvoreItem({
       (position) => {
         const lat = Number(position.coords.latitude.toFixed(6));
         const lng = Number(position.coords.longitude.toFixed(6));
-        
-        // Update form values
-        if (form) {
-          form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
-          form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
-        }
-        
-        // Update component state
-        onUpdate(index, { latitude: lat, longitude: lng });
-        
-        // Fetch address for coordinates
-        fetchAddressForCoordinates(lat, lng);
-        
-        // Show success message
-        toast({ title: "Localização obtida", description: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
+        applyCoordinates(lat, lng, "Localização obtida");
       },
       () => {
         toast({
@@ -168,6 +153,26 @@ export function ArvoreItem({
         });
       }
     );
+  };
+
+  const applyCoordinates = (lat: number, lng: number, successMessage: string) => {
+    // Aplicar coordenadas no formulário primeiro
+    if (form) {
+      form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
+      form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
+    }
+    
+    // Atualizar estado do componente (mas sem triggering dos watches porque eles são debouncados)
+    onUpdate(index, { latitude: lat, longitude: lng });
+    
+    // Buscar endereço
+    fetchAddressForCoordinates(lat, lng);
+    
+    // Mostrar mensagem de sucesso
+    toast({ 
+      title: successMessage, 
+      description: `${lat.toFixed(6)}, ${lng.toFixed(6)}` 
+    });
   };
 
 
