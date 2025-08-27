@@ -46,9 +46,6 @@ export function ArvoreItem({
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
 
-  // estados de texto para digitação fluida
-  const [latText, setLatText] = useState<string>("");
-  const [lngText, setLngText] = useState<string>("");
 
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
@@ -100,22 +97,6 @@ export function ArvoreItem({
       return () => clearTimeout(id);
     }, deps);
   }
-  // mantém os textos sincronizados com o form/estado atual
-  useEffect(() => {
-    const lat = form?.getValues?.(`${fieldName}.${index}.latitude`);
-    const lng = form?.getValues?.(`${fieldName}.${index}.longitude`);
-
-    setLatText(
-      lat != null
-        ? String(lat)
-        : (arvore.latitude != null ? String(arvore.latitude) : "")
-    );
-    setLngText(
-      lng != null
-        ? String(lng)
-        : (arvore.longitude != null ? String(arvore.longitude) : "")
-    );
-  }, [form, fieldName, index, arvore.latitude, arvore.longitude]);
   
     const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
 
@@ -130,34 +111,35 @@ export function ArvoreItem({
 
   
   const handleLocationFromGPS = () => {
-    if (!navigator.geolocation) return;
-
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocalização não suportada", description: "Seu navegador não suporta geolocalização", variant: "destructive" });
+      return;
+    }
+    
     navigator.geolocation.getCurrentPosition(
-      ({ coords }) => {
-        const newLat = Number(coords.latitude.toFixed(6));
-        const newLng = Number(coords.longitude.toFixed(6));
-
-        setTempCoords({ lat: newLat, lng: newLng });
-
+      (position) => {
+        const newLat = Number(position.coords.latitude.toFixed(6));
+        const newLng = Number(position.coords.longitude.toFixed(6));
+        
+        // Update form values
         if (form) {
           form.setValue(`${fieldName}.${index}.latitude`, newLat, { shouldDirty: true, shouldValidate: true });
           form.setValue(`${fieldName}.${index}.longitude`, newLng, { shouldDirty: true, shouldValidate: true });
         }
-
+        
+        // Update component state
         onUpdate(index, { latitude: newLat, longitude: newLng });
-
-        toast({ title: "Localização obtida", description: `Coordenadas: ${newLat}, ${newLng}` });
-
-        setLatText(String(newLat));
-        setLngText(String(newLng));
-
-        // **certifique-se de que esta função está declarada ACIMA desta chamada**
+        
+        // Show success message
+        toast({ title: "Localização obtida", description: `Coordenadas atualizadas: ${newLat}, ${newLng}` });
+        
+        // Fetch address for coordinates
         fetchAddressForCoordinates(newLat, newLng);
       },
       () => {
         toast({
-          title: "Erro ao obter localização",
-          description: "Verifique se você permitiu acesso à localização",
+          title: "Erro de localização",
+          description: "Não foi possível obter sua localização. Verifique as permissões do navegador.",
           variant: "destructive",
         });
       }
@@ -180,8 +162,6 @@ export function ArvoreItem({
       fetchAddressForCoordinates(latToApply, lngToApply);
     }
 
-    setLatText(String(latToApply));
-    setLngText(String(lngToApply));
     
     setShowMap(false);
   };
@@ -248,87 +228,73 @@ export function ArvoreItem({
       
       {!isCollapsed && (
         <CardContent className="space-y-4">
-          {/* Coordinates */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label>Latitude *</Label>
-              <Input
-                type="number"
-                step="any"
-                inputMode="decimal"
-                value={latText}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(",", ".");
-                  if (/^-?\d*(?:\.\d*)?$/.test(raw)) setLatText(raw);
-                }}
-                onBlur={() => {
-                  const raw = latText.trim();
-                  const parsed =
-                    (raw === "" || raw === "-" || raw === "." || raw === "-.")
-                      ? undefined
-                      : Number(raw);
-                  form?.setValue(`${fieldName}.${index}.latitude`, parsed, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                  onUpdate(index, { latitude: parsed });
-                }}
-                placeholder="Ex: -23.550520"
-                data-testid={`input-latitude-${index}`}
-              />
-
+          {/* GPS Coordinates Section */}
+          <div className="border rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center justify-between mb-4">
+              <h4 className="text-sm font-medium text-gray-900">Coordenadas GPS da Árvore</h4>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleLocationFromGPS}
+                data-testid={`button-gps-${index}`}
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                Usar GPS
+              </Button>
             </div>
 
-            <div>
-              <Label>Longitude *</Label>
-              <Input
-                type="text"
-                inputMode="decimal"
-                value={lngText}
-                onChange={(e) => {
-                  const raw = e.target.value.replace(",", ".");
-                  if (/^-?\d*(?:\.\d*)?$/.test(raw)) setLngText(raw);
-                }}
-                onBlur={() => {
-                  const raw = lngText.trim();
-                  const parsed =
-                    (raw === "" || raw === "-" || raw === "." || raw === "-.")
-                      ? undefined
-                      : Number(raw);
-                  form?.setValue(`${fieldName}.${index}.longitude`, parsed, {
-                    shouldDirty: true,
-                    shouldValidate: true,
-                  });
-                  onUpdate(index, { longitude: parsed });
-                }}
-                placeholder="Ex: -47.295757"
-                data-testid={`input-longitude-${index}`}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Latitude *</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="Ex: -23.550520"
+                  value={arvore.latitude || ""}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    if (form) {
+                      form.setValue(`${fieldName}.${index}.latitude`, value, { shouldDirty: true, shouldValidate: true });
+                    }
+                    onUpdate(index, { latitude: value });
+                  }}
+                  data-testid={`input-latitude-${index}`}
+                />
+              </div>
+
+              <div>
+                <Label>Longitude *</Label>
+                <Input
+                  type="number"
+                  step="any"
+                  placeholder="Ex: -47.295757"
+                  value={arvore.longitude || ""}
+                  onChange={(e) => {
+                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    if (form) {
+                      form.setValue(`${fieldName}.${index}.longitude`, value, { shouldDirty: true, shouldValidate: true });
+                    }
+                    onUpdate(index, { longitude: value });
+                  }}
+                  data-testid={`input-longitude-${index}`}
+                />
+              </div>
             </div>
+
+            {arvore.latitude && arvore.longitude && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-800">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Coordenadas: {arvore.latitude.toFixed(6)}, {arvore.longitude.toFixed(6)}
+                </p>
+              </div>
+            )}
           </div>
 
-
-
-          {/* Map and GPS buttons */}
+          {/* Map button */}
           <div className="flex space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleLocationFromGPS}
-              data-testid={`button-gps-${index}`}
-            >
-              <MapPin className="w-4 h-4 mr-2" />
-              Usar GPS
-            </Button>
-            <Dialog open={showMap} onOpenChange={(open) => {
-              // Só permite fechar se explicitamente solicitado
-              if (!open) {
-                setShowMap(false);
-              } else {
-                setShowMap(true);
-              }
-            }}>
+            <Dialog open={showMap} onOpenChange={setShowMap}>
               <DialogTrigger asChild>
                 <Button
                   type="button"
