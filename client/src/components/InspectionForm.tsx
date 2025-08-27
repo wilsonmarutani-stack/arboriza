@@ -136,8 +136,10 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   // --------- Seleção dependente Subestação → Alimentador ----------
   const selectedSubestacaoId = form.watch("subestacaoId");
 
-  // Filtrar alimentadores pela subestação selecionada
-  const filteredAlimentadores = (alimentadores || []).filter(a => a.subestacaoId === selectedSubestacaoId);
+  // Filtrar alimentadores pela subestação selecionada e ordenar por código
+  const filteredAlimentadores = (alimentadores || [])
+    .filter(a => a.subestacaoId === selectedSubestacaoId)
+    .sort((a, b) => a.codigo.localeCompare(b.codigo));
 
   // Limpar alimentador quando trocar subestação
   useEffect(() => {
