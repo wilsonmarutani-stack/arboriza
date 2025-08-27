@@ -81,6 +81,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       dataInspecao: new Date(),
       eaId: "",              // sem default "ea1"
       municipioId: "",
+      subestacaoId: "",
+      alimentadorId: "",
       prioridade: "baixa",
       latitude: coordinates.lat,  // Manter por compatibilidade com backend
       longitude: coordinates.lng, // Manter por compatibilidade com backend
@@ -130,6 +132,22 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
   const { data: alimentadores } = useQuery<Alimentador[]>({ queryKey: ["/api/refs/alimentadores"] });
   const { data: subestacoes } = useQuery<Subestacao[]>({ queryKey: ["/api/refs/subestacoes"] });
+
+  // --------- Seleção dependente Subestação → Alimentador ----------
+  const selectedSubestacaoId = form.watch("subestacaoId");
+
+  // Filtrar alimentadores pela subestação selecionada
+  const filteredAlimentadores = (alimentadores || []).filter(a => a.subestacaoId === selectedSubestacaoId);
+
+  // Limpar alimentador quando trocar subestação
+  useEffect(() => {
+    const sub = form.watch("subestacaoId");
+    const aliAtual = form.getValues("alimentadorId");
+    const aindaValido = (alimentadores || []).some(a => a.id === aliAtual && a.subestacaoId === sub);
+    if (!sub || !aindaValido) {
+      form.setValue("alimentadorId", "", { shouldDirty: true, shouldValidate: true });
+    }
+  }, [form, alimentadores, selectedSubestacaoId]);
 
   // --------- Mutação (criar inspeção) ----------
   const createInspectionMutation = useMutation({
@@ -556,14 +574,26 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Alimentador *</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""} data-testid="select-alimentador">
+                      <Select
+                        disabled={!selectedSubestacaoId}
+                        value={field.value ?? "none"}
+                        onValueChange={(value) => {
+                          const v = value === "none" ? "" : value;
+                          field.onChange(v);
+                        }}
+                        data-testid="select-alimentador"
+                      >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="Selecione o alimentador" />
+                            <SelectValue placeholder={selectedSubestacaoId ? "Selecione o alimentador" : "Selecione uma subestação primeiro"} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="z-[9999]" position="popper">
-                          {alimentadores?.map((a) => (
+                          {!selectedSubestacaoId && <SelectItem value="none" disabled>Nenhum</SelectItem>}
+                          {selectedSubestacaoId && filteredAlimentadores.length === 0 && (
+                            <SelectItem value="none" disabled>Sem alimentadores para esta subestação</SelectItem>
+                          )}
+                          {filteredAlimentadores.map((a) => (
                             <SelectItem key={a.id} value={a.id}>
                               {a.codigo}
                             </SelectItem>
@@ -581,13 +611,23 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Subestação</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value ?? ""} data-testid="select-subestacao">
+                      <Select
+                        value={field.value ?? "all"}
+                        onValueChange={(value) => {
+                          const v = value === "all" ? "" : value;
+                          field.onChange(v);
+                          // Limpar alimentador quando trocar subestação
+                          form.setValue("alimentadorId", "", { shouldDirty: true, shouldValidate: true });
+                        }}
+                        data-testid="select-subestacao"
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione a subestação" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent className="z-[9999]" position="popper">
+                          <SelectItem value="all">Todas</SelectItem>
                           {subestacoes?.map((s) => (
                             <SelectItem key={s.id} value={s.id}>
                               {s.nome}
