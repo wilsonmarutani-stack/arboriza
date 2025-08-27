@@ -147,12 +147,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/inspecoes", upload.single('foto'), async (req, res) => {
     try {
-      // Parse and validate inspection data
+      // Parse and validate inspection data with proper number handling
+      const latitude = req.body.latitude ? parseFloat(req.body.latitude) : undefined;
+      const longitude = req.body.longitude ? parseFloat(req.body.longitude) : undefined;
+      
+      // Validate coordinates are valid numbers
+      if (!latitude || !longitude || isNaN(latitude) || isNaN(longitude)) {
+        return res.status(400).json({ error: "Coordenadas inválidas: latitude e longitude devem ser números válidos" });
+      }
+      
       const inspecaoData = {
         ...req.body,
         dataInspecao: new Date(req.body.dataInspecao),
-        latitude: parseFloat(req.body.latitude),
-        longitude: parseFloat(req.body.longitude),
+        latitude,
+        longitude,
         especieConfiancaMedia: req.body.especieConfiancaMedia ? parseFloat(req.body.especieConfiancaMedia) : undefined,
         fotoUrl: req.file ? `/uploads/${req.file.filename}` : undefined,
       };
@@ -165,14 +173,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           const items = JSON.parse(req.body.items);
           for (const item of items) {
+            // Validate tree coordinates
+            const treeLat = typeof item.latitude === 'number' ? item.latitude : parseFloat(item.latitude);
+            const treeLng = typeof item.longitude === 'number' ? item.longitude : parseFloat(item.longitude);
+            
+            if (isNaN(treeLat) || isNaN(treeLng)) {
+              console.warn("Árvore com coordenadas inválidas ignorada:", item);
+              continue;
+            }
+            
             const arvoreData = {
               inspecaoId: inspecao.id,
-              latitude: item.latitude,
-              longitude: item.longitude,
+              latitude: treeLat,
+              longitude: treeLng,
               endereco: item.endereco,
               observacao: item.observacao,
               especieFinal: item.especieFinal,
-              especieConfiancaMedia: item.especieConfiancaMedia,
+              especieConfiancaMedia: item.especieConfiancaMedia ? parseFloat(item.especieConfiancaMedia) : undefined,
             };
             
             const validatedArvore = insertArvoreSchema.parse(arvoreData);
@@ -408,7 +425,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.put("/api/inspecoes/:id/arvores/:arvoreId", async (req, res) => {
     try {
-      const validatedArvore = insertArvoreSchema.partial().parse(req.body);
+      // Parse and validate coordinates if provided
+      const updateData = { ...req.body };
+      
+      if (updateData.latitude !== undefined) {
+        const lat = parseFloat(updateData.latitude);
+        if (isNaN(lat)) {
+          return res.status(400).json({ error: "Latitude inválida" });
+        }
+        updateData.latitude = lat;
+      }
+      
+      if (updateData.longitude !== undefined) {
+        const lng = parseFloat(updateData.longitude);
+        if (isNaN(lng)) {
+          return res.status(400).json({ error: "Longitude inválida" });
+        }
+        updateData.longitude = lng;
+      }
+      
+      if (updateData.especieConfiancaMedia !== undefined && updateData.especieConfiancaMedia !== null) {
+        const conf = parseFloat(updateData.especieConfiancaMedia);
+        updateData.especieConfiancaMedia = isNaN(conf) ? undefined : conf;
+      }
+      
+      const validatedArvore = insertArvoreSchema.partial().parse(updateData);
       const arvore = await storage.updateArvore(req.params.arvoreId, validatedArvore);
       res.json(arvore);
     } catch (error) {

@@ -44,13 +44,13 @@ export const inspecoes = pgTable("inspecoes", {
   municipioId: varchar("municipio_id").references(() => municipios.id).notNull(),
   alimentadorId: varchar("alimentador_id").references(() => alimentadores.id).notNull(),
   subestacaoId: varchar("subestacao_id").references(() => subestacoes.id).notNull(),
-  latitude: real("latitude").notNull(),
-  longitude: real("longitude").notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
   endereco: text("endereco"),
   prioridade: text("prioridade").notNull(), // baixa, media, alta
   observacoes: text("observacoes"),
   especieFinal: text("especie_final"),
-  especieConfiancaMedia: real("especie_confianca_media"),
+  especieConfiancaMedia: doublePrecision("especie_confianca_media"),
   fotoUrl: text("foto_url"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -61,7 +61,7 @@ export const especieCandidatos = pgTable("especie_candidatos", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   inspecaoId: varchar("inspecao_id").references(() => inspecoes.id).notNull(),
   nome: text("nome").notNull(),
-  confianca: real("confianca").notNull(),
+  confianca: doublePrecision("confianca").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -74,7 +74,7 @@ export const arvores = pgTable("arvores", {
   endereco: text("endereco"),
   observacao: text("observacao"),
   especieFinal: text("especie_final"),
-  especieConfiancaMedia: numeric("especie_confianca_media"),
+  especieConfiancaMedia: doublePrecision("especie_confianca_media"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
