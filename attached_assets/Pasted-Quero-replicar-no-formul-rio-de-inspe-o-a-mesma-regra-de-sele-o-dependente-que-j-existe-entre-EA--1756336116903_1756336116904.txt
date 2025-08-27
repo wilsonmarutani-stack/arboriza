@@ -1,0 +1,132 @@
+Quero replicar no formulário de inspeção a mesma regra de seleção dependente que já existe entre EA → Município, mas agora para Subestação → Alimentador.
+
+Objetivo
+
+Ao selecionar Subestação, o campo Alimentador deve mostrar somente os alimentadores pertencentes à subestação selecionada.
+
+Quando trocar a Subestação, o valor do Alimentador deve ser limpo e o Select ficar desabilitado até que uma subestação seja escolhida.
+
+Arquivo a editar
+
+client/src/components/ui/InspectionForm.tsx (onde já existem os selects de EA/Município).
+
+Se o form estiver em outro arquivo, aplique as mesmas mudanças onde ficam os campos subestacao_id e alimentador_id.
+
+Dados / Tipos
+
+Suponha estes tipos (ajuste nomes se já existirem):
+
+type Subestacao = { id: string; nome: string; ea_id?: string };
+type Alimentador = { id: string; nome: string; subestacao_id: string };
+
+Endpoints (usando react-query, igual EA/Município)
+
+Subestações: GET /api/refs/subestacoes → Subestacao[]
+
+Alimentadores: GET /api/refs/alimentadores → Alimentador[]
+
+Crie (se ainda não existirem):
+
+const { data: subestacoes = [] } = useQuery<Subestacao[]>({ queryKey: ["/api/refs/subestacoes"] });
+const { data: alimentadores = [] } = useQuery<Alimentador[]>({ queryKey: ["/api/refs/alimentadores"] });
+
+Lógica (igual à de EA → Município)
+
+const selectedSub = form.watch("subestacao_id");
+
+const filteredAlimentadores = (alimentadores || []).filter(a => a.subestacao_id === selectedSub);
+
+Quando subestacao_id mudar, dê reset em alimentador_id.
+
+useEffect(() => {
+  const sub = form.watch("subestacao_id");
+  const aliAtual = form.getValues("alimentador_id");
+  const aindaValido = (alimentadores || []).some(a => a.id === aliAtual && a.subestacao_id === sub);
+  if (!sub || !aindaValido) {
+    form.setValue("alimentador_id", undefined, { shouldDirty: true, shouldValidate: true });
+  }
+}, [form, alimentadores, form.watch("subestacao_id")]);
+
+UI (shadcn/ui Select) — adicione estes blocos no formulário
+Select de Subestação
+
+Atualiza subestacao_id e zera alimentador_id.
+
+Data-testid: input-subestacao.
+
+<div>
+  <Label className="text-sm font-medium text-gray-700 mb-2">Subestação</Label>
+  <Select
+    value={form.watch("subestacao_id") ?? "all"}
+    onValueChange={(value) => {
+      const v = value === "all" ? undefined : value;
+      form.setValue("subestacao_id", v, { shouldDirty: true, shouldValidate: true });
+      form.setValue("alimentador_id", undefined, { shouldDirty: true, shouldValidate: true });
+    }}
+  >
+    <SelectTrigger data-testid="input-subestacao">
+      <SelectValue placeholder="Selecione a subestação" />
+    </SelectTrigger>
+    <SelectContent>
+      <SelectItem value="all">Todas</SelectItem>
+      {subestacoes.map(s => (
+        <SelectItem key={s.id} value={`${s.id}`}>{s.nome}</SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+
+Select de Alimentador (dependente da Subestação)
+
+Fica disabled se subestacao_id não estiver selecionada.
+
+Lista apenas filteredAlimentadores.
+
+Data-testid: input-alimentador.
+
+<div>
+  <Label className="text-sm font-medium text-gray-700 mb-2">Alimentador</Label>
+  <Select
+    disabled={!form.watch("subestacao_id")}
+    value={form.watch("alimentador_id") ?? "none"}
+    onValueChange={(value) => {
+      const v = value === "none" ? undefined : value;
+      form.setValue("alimentador_id", v, { shouldDirty: true, shouldValidate: true });
+    }}
+  >
+    <SelectTrigger data-testid="input-alimentador">
+      <SelectValue placeholder={form.watch("subestacao_id") ? "Selecione o alimentador" : "Selecione uma subestação primeiro"} />
+    </SelectTrigger>
+    <SelectContent>
+      {!form.watch("subestacao_id") && <SelectItem value="none" disabled>Nenhum</SelectItem>}
+      {form.watch("subestacao_id") && filteredAlimentadores.length === 0 && (
+        <SelectItem value="none" disabled>Sem alimentadores para esta subestação</SelectItem>
+      )}
+      {filteredAlimentadores.map(a => (
+        <SelectItem key={a.id} value={`${a.id}`}>{a.nome}</SelectItem>
+      ))}
+    </SelectContent>
+  </Select>
+</div>
+
+Regras/Boas práticas (iguais ao EA→Município)
+
+Ao alterar Subestação, limpar alimentador_id.
+
+Desabilitar o Select de Alimentador quando não houver subestacao_id.
+
+Garantir que os id nos SelectItem são string (value={${id}}).
+
+Manter data-testids: input-subestacao, input-alimentador.
+
+Critérios de aceitação
+
+Seleciono “Subestação A” → o campo “Alimentador” lista apenas alimentadores com subestacao_id === A.
+
+Troco para “Subestação B” → o valor do alimentador é limpo e a lista reflete somente os alimentadores de B.
+
+Sem subestação selecionada → o Select de alimentador fica desabilitado e mostra placeholder “Selecione uma subestação primeiro”.
+
+O payload de submit inclui subestacao_id e alimentador_id conforme selecionados.
+
+Use o padrão existente de EA→Município como referência de estilo e posicionamento no layout do formulário.
