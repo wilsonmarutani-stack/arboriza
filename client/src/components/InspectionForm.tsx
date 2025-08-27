@@ -68,6 +68,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     lng: initialData?.lng,
   });
   const [address, setAddress] = useState("");
+  const [showMap, setShowMap] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -176,7 +177,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
         form.setValue("latitude", newCoords.lat);
         form.setValue("longitude", newCoords.lng);
         reverseGeocode(newCoords.lat, newCoords.lng);
-        toast({ title: "Localização obtida", description: "Coordenadas atualizadas com sua localização atual" });
+        setShowMap(true); // Show map after getting GPS location
+        toast({ title: "Localização obtida", description: "Coordenadas atualizadas. Use o mapa abaixo para ajustes finos." });
       },
       () => {
         toast({
@@ -199,6 +201,23 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       }
     } catch (e) {
       console.error("Erro no geocoding:", e);
+    }
+  };
+
+  // Handle map marker drag for fine-tuning coordinates
+  const handleMapMarkerDrag = (lat: number, lng: number) => {
+    const newCoords = { lat, lng };
+    setCoordinates(newCoords);
+    form.setValue("latitude", lat);
+    form.setValue("longitude", lng);
+    reverseGeocode(lat, lng);
+  };
+
+  // Handle manual coordinate input changes
+  const handleCoordinateChange = (lat?: number, lng?: number) => {
+    if (lat !== undefined && lng !== undefined) {
+      setCoordinates({ lat, lng });
+      setShowMap(true);
     }
   };
 
@@ -613,7 +632,13 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                             placeholder="Ex: -23.550520"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            onChange={(e) => {
+                              const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                              field.onChange(value);
+                              if (value !== undefined && form.getValues("longitude")) {
+                                handleCoordinateChange(value, form.getValues("longitude"));
+                              }
+                            }}
                             data-testid="input-latitude"
                           />
                         </FormControl>
@@ -635,7 +660,13 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                             placeholder="Ex: -47.295757"
                             {...field}
                             value={field.value || ""}
-                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            onChange={(e) => {
+                              const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                              field.onChange(value);
+                              if (value !== undefined && form.getValues("latitude")) {
+                                handleCoordinateChange(form.getValues("latitude"), value);
+                              }
+                            }}
                             data-testid="input-longitude"
                           />
                         </FormControl>
@@ -675,6 +706,40 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                         📍 {address}
                       </p>
                     )}
+                  </div>
+                )}
+
+                {/* Interactive Map for Fine-Tuning */}
+                {showMap && coordinates.lat && coordinates.lng && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-medium text-gray-900">
+                        Ajuste Fino das Coordenadas
+                      </h4>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowMap(false)}
+                        data-testid="button-hide-map"
+                      >
+                        Ocultar Mapa
+                      </Button>
+                    </div>
+                    <p className="text-xs text-gray-600 mb-3">
+                      Arraste o marcador no mapa para ajustar a localização exata
+                    </p>
+                    <div className="border rounded-lg overflow-hidden" style={{ height: '300px' }}>
+                      <MapComponent
+                        center={[coordinates.lat, coordinates.lng]}
+                        draggableMarker={{
+                          lat: coordinates.lat,
+                          lng: coordinates.lng,
+                          onDrag: handleMapMarkerDrag
+                        }}
+                        zoom={18}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
