@@ -48,6 +48,10 @@ export function ArvoreItem({
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
 
+  // Watches do formulário
+  const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
+  const latWatch = form?.watch(`${fieldName}.${index}.latitude`);
+  const lngWatch = form?.watch(`${fieldName}.${index}.longitude`);
 
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
@@ -104,10 +108,6 @@ export function ArvoreItem({
       return () => clearTimeout(id);
     }, deps);
   }
-  
-    const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
-  const latWatch = form?.watch(`${fieldName}.${index}.latitude`);
-  const lngWatch = form?.watch(`${fieldName}.${index}.longitude`);
 
   useDebouncedEffect(() => {
     const updates: Partial<typeof arvore> = {};
