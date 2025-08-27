@@ -48,20 +48,15 @@ export function ArvoreItem({
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
 
-  // Watches do formulário
+  // Watch apenas para observação
   const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
-  const latWatch = form?.watch(`${fieldName}.${index}.latitude`);
-  const lngWatch = form?.watch(`${fieldName}.${index}.longitude`);
-
-  // Debug: verificar valores dos watches
-  console.log(`Árvore ${index} - latWatch:`, latWatch, 'lngWatch:', lngWatch);
 
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
-      setTempCoords({ lat: latWatch ?? Number.NaN, lng: lngWatch ?? Number.NaN });
+      setTempCoords({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
     }
-  }, [showMap, latWatch, lngWatch]);
+  }, [showMap, arvore.latitude, arvore.longitude]);
 
   async function fetchAddressForCoordinates(lat: number, lng: number) {
     try {
@@ -74,7 +69,7 @@ export function ArvoreItem({
       console.error("Erro ao buscar endereço:", error);
     }
   }
-  // registra campos no RHF para watch()/setValue funcionarem
+  // registra campos no RHF para setValue funcionarem
   useEffect(() => {
     if (!form) return;
     form.register(`${fieldName}.${index}.latitude`);
@@ -117,14 +112,8 @@ export function ArvoreItem({
     if (obsWatch !== undefined && obsWatch !== arvore.observacao) {
       updates.observacao = obsWatch;
     }
-    if (latWatch !== undefined && latWatch !== arvore.latitude) {
-      updates.latitude = latWatch;
-    }
-    if (lngWatch !== undefined && lngWatch !== arvore.longitude) {
-      updates.longitude = lngWatch;
-    }
     if (Object.keys(updates).length) onUpdate(index, updates);
-  }, [obsWatch, latWatch, lngWatch], 250);
+  }, [obsWatch], 250);
 
 
   
@@ -185,8 +174,8 @@ export function ArvoreItem({
   };
 
   const applyTempCoords = () => {
-    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : latWatch;
-    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : lngWatch;
+    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude;
+    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude;
     form?.setValue(`${fieldName}.${index}.latitude`, latToApply, { shouldDirty: true, shouldValidate: true });
     form?.setValue(`${fieldName}.${index}.longitude`, lngToApply, { shouldDirty: true, shouldValidate: true });
     onUpdate(index, { latitude: latToApply, longitude: lngToApply });
@@ -283,12 +272,14 @@ export function ArvoreItem({
                   type="number"
                   step="any"
                   placeholder="Ex: -23.550520"
-                  value={latWatch || ""}
+                  value={arvore.latitude || ""}
                   onChange={(e) => {
                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    // Sincronizar com formulário e estado
                     if (form) {
                       form.setValue(`${fieldName}.${index}.latitude`, value, { shouldDirty: true, shouldValidate: true });
                     }
+                    onUpdate(index, { latitude: value });
                   }}
                   data-testid={`input-latitude-${index}`}
                 />
@@ -300,23 +291,25 @@ export function ArvoreItem({
                   type="number"
                   step="any"
                   placeholder="Ex: -47.295757"
-                  value={lngWatch || ""}
+                  value={arvore.longitude || ""}
                   onChange={(e) => {
                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    // Sincronizar com formulário e estado
                     if (form) {
                       form.setValue(`${fieldName}.${index}.longitude`, value, { shouldDirty: true, shouldValidate: true });
                     }
+                    onUpdate(index, { longitude: value });
                   }}
                   data-testid={`input-longitude-${index}`}
                 />
               </div>
             </div>
 
-            {latWatch && lngWatch && (
+            {arvore.latitude && arvore.longitude && (
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-sm text-green-800">
                   <MapPin className="w-4 h-4 inline mr-1" />
-                  Coordenadas: {Number(latWatch).toFixed(6)}, {Number(lngWatch).toFixed(6)}
+                  Coordenadas: {Number(arvore.latitude).toFixed(6)}, {Number(arvore.longitude).toFixed(6)}
                 </p>
               </div>
             )}
