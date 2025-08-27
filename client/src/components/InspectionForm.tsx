@@ -63,6 +63,11 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const [showCameraOptions, setShowCameraOptions] = useState(false);
   const [isIdentifying, setIsIdentifying] = useState(false);
   const [speciesResults, setSpeciesResults] = useState<SpeciesIdentificationResult | null>(null);
+  const [coordinates, setCoordinates] = useState({
+    lat: initialData?.lat,
+    lng: initialData?.lng,
+  });
+  const [address, setAddress] = useState("");
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -76,12 +81,14 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       eaId: "",              // sem default "ea1"
       municipioId: "",
       prioridade: "baixa",
+      latitude: coordinates.lat,  // Manter por compatibilidade com backend
+      longitude: coordinates.lng, // Manter por compatibilidade com backend
       endereco: "",              // Manter por compatibilidade com backend
       observacoes: "",
       especieFinal: "",
       arvores: [{
-        latitude: initialData?.lat,
-        longitude: initialData?.lng,
+        latitude: coordinates.lat,
+        longitude: coordinates.lng,
         endereco: "",
         observacao: "",
         especieFinal: "",
@@ -156,6 +163,44 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     },
   });
 
+  // --------- Geolocalização / geocoding ----------
+  const getCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ title: "Geolocalização não suportada", description: "Seu navegador não suporta geolocalização", variant: "destructive" });
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const newCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setCoordinates(newCoords);
+        form.setValue("latitude", newCoords.lat);
+        form.setValue("longitude", newCoords.lng);
+        reverseGeocode(newCoords.lat, newCoords.lng);
+        toast({ title: "Localização obtida", description: "Coordenadas atualizadas com sua localização atual" });
+      },
+      () => {
+        toast({
+          title: "Erro de localização",
+          description: "Não foi possível obter sua localização. Verifique as permissões do navegador.",
+          variant: "destructive",
+        });
+      }
+    );
+  };
+
+  const reverseGeocode = async (lat: number, lng: number) => {
+    try {
+      const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
+      const data = await response.json();
+      if (data.endereco) {
+        setAddress(data.endereco);
+        form.setValue("endereco", data.endereco);
+        await autoFillMunicipality(data.endereco);
+      }
+    } catch (e) {
+      console.error("Erro no geocoding:", e);
+    }
+  };
 
   const handleCameraCapture = async (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -293,6 +338,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     }
   };
 
+  const handleMarkerDrag = (lat: number, lng: number) => {
+    setCoordinates({ lat, lng });
+    form.setValue("latitude", lat);
+    form.setValue("longitude", lng);
+    reverseGeocode(lat, lng);
+  };
 
   const useSpeciesCandidate = (c: SpeciesCandidate) => {
     form.setValue("especieFinal", c.nome);
@@ -313,8 +364,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
     const firstTree = data.arvores[0];
     const inspectionData = {
       ...data,
-      latitude: firstTree?.latitude || -23.2109,
-      longitude: firstTree?.longitude || -47.2957,
+      latitude: firstTree?.latitude || coordinates.lat || -23.2109,
+      longitude: firstTree?.longitude || coordinates.lng || -47.2957,
       endereco: firstTree?.endereco || "",
       arvores: data.arvores
     };
@@ -530,6 +581,102 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                   )}
                 />
 
+              </div>
+
+              {/* GPS Coordinates Section */}
+              <div className="border-t pt-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">Coordenadas GPS da Inspeção</h3>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={getCurrentLocation}
+                    data-testid="button-use-gps"
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Usar GPS
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="latitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Latitude</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="any"
+                            placeholder="Ex: -23.550520"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            data-testid="input-latitude"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="longitude"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Longitude</FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="any"
+                            placeholder="Ex: -47.295757"
+                            {...field}
+                            value={field.value || ""}
+                            onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : undefined)}
+                            data-testid="input-longitude"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="endereco"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Endereço</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="Endereço será preenchido automaticamente"
+                            {...field}
+                            value={field.value || ""}
+                            data-testid="input-endereco"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {coordinates.lat && coordinates.lng && (
+                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <p className="text-sm text-green-800">
+                      <MapPin className="w-4 h-4 inline mr-1" />
+                      Coordenadas: {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                    </p>
+                    {address && (
+                      <p className="text-sm text-green-700 mt-1">
+                        📍 {address}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
