@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +24,7 @@ import { InspecaoCompleta, type Ea, type Municipio } from "@shared/schema";
 interface InspectionsTableProps {
   onNewInspection: () => void;
   onEditInspection?: (inspection: InspecaoCompleta) => void;
+  onShowMap?: (inspection: InspecaoCompleta) => void;
 }
 
 interface TableFilters {
@@ -34,7 +36,8 @@ interface TableFilters {
   numeroNota?: string;
 }
 
-export function InspectionsTable({ onNewInspection, onEditInspection }: InspectionsTableProps) {
+export function InspectionsTable({ onNewInspection, onEditInspection, onShowMap }: InspectionsTableProps) {
+  const queryClient = useQueryClient();
   const [filters, setFilters] = useState<TableFilters>({});
   const [currentPage, setCurrentPage] = useState(1);
   const [showFilters, setShowFilters] = useState(false);
@@ -127,6 +130,48 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
   const clearFilters = () => {
     setFilters({});
     setCurrentPage(1);
+  };
+
+  // Delete inspection mutation
+  const deleteInspectionMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      const response = await fetch(`/api/inspecoes/${inspectionId}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Erro ao excluir inspeção');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inspecoes"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      toast({ 
+        title: "Sucesso", 
+        description: "Inspeção excluída com sucesso!" 
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Erro", 
+        description: error.message || "Erro ao excluir inspeção", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  const handleDeleteInspection = (inspection: InspecaoCompleta) => {
+    if (window.confirm(`Tem certeza que deseja excluir a inspeção ${inspection.numeroNota}? Esta ação não pode ser desfeita.`)) {
+      deleteInspectionMutation.mutate(inspection.id);
+    }
+  };
+
+  const handleShowMap = (inspection: InspecaoCompleta) => {
+    if (onShowMap) {
+      onShowMap(inspection);
+    } else {
+      // Fallback: open in new tab with Google Maps
+      const url = `https://www.google.com/maps?q=${inspection.latitude},${inspection.longitude}`;
+      window.open(url, '_blank');
+    }
   };
 
   const totalPages = Math.ceil(inspections.length / itemsPerPage);
@@ -396,6 +441,7 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                           <Button 
                             variant="ghost" 
                             size="sm"
+                            onClick={() => handleShowMap(inspecao)}
                             data-testid={`button-map-${inspecao.id}`}
                           >
                             <MapPin className="w-4 h-4" />
@@ -413,6 +459,8 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
                           <Button 
                             variant="ghost" 
                             size="sm"
+                            onClick={() => handleDeleteInspection(inspecao)}
+                            disabled={deleteInspectionMutation.isPending}
                             data-testid={`button-delete-${inspecao.id}`}
                           >
                             <Trash2 className="w-4 h-4 text-red-600" />
