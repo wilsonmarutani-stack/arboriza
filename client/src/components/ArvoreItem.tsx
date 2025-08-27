@@ -256,19 +256,25 @@ export function ArvoreItem({
                 type="number"
                 step="any"
                 inputMode="decimal"
-                value={
-                  (form?.watch(`${fieldName}.${index}.longitude`) ?? arvore.longitude) ?? ""
-                }
+                value={latText}
                 onChange={(e) => {
-                  const raw = e.target.value.trim();
-                  const parsed = raw === "" ? undefined : Number(raw);
-                  form?.setValue(`${fieldName}.${index}.longitude`, parsed, {
+                  const raw = e.target.value.replace(",", ".");
+                  if (/^-?\d*(?:\.\d*)?$/.test(raw)) setLatText(raw);
+                }}
+                onBlur={() => {
+                  const raw = latText.trim();
+                  const parsed =
+                    (raw === "" || raw === "-" || raw === "." || raw === "-.")
+                      ? undefined
+                      : Number(raw);
+                  form?.setValue(`${fieldName}.${index}.latitude`, parsed, {
                     shouldDirty: true,
                     shouldValidate: true,
                   });
+                  onUpdate(index, { latitude: parsed });
                 }}
-                placeholder="Ex: -47.295757"
-                data-testid={`input-longitude-${index}`}
+                placeholder="Ex: -23.550520"
+                data-testid={`input-latitude-${index}`}
               />
 
             </div>
