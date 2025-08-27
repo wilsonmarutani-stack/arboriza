@@ -47,11 +47,17 @@ export function InspectionsTable({ onNewInspection, onEditInspection }: Inspecti
 
   // Fetch inspections with filters
   const { data: inspections = [], isLoading } = useQuery<InspecaoCompleta[]>({
-    queryKey: ["/api/inspecoes", { 
-      ...filters, 
-      limit: itemsPerPage, 
-      offset: (currentPage - 1) * itemsPerPage 
-    }],
+    queryKey: [
+      "/api/inspecoes",
+      filters.eaId || "all",
+      filters.municipioId || "all", 
+      filters.prioridade || "all",
+      filters.dataInicio || "all",
+      filters.dataFim || "all",
+      filters.numeroNota || "all",
+      currentPage.toString(),
+      itemsPerPage.toString()
+    ],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.eaId) params.append('ea_id', filters.eaId);

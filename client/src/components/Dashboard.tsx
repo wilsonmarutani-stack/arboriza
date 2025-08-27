@@ -56,7 +56,15 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
   });
 
   const { data: recentInspections, isLoading: inspectionsLoading } = useQuery<InspecaoCompleta[]>({
-    queryKey: ["/api/inspecoes", { limit: 5 }],
+    queryKey: ["/api/inspecoes", "limit", "5"],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      params.append('limit', '5');
+      const url = `/api/inspecoes?${params.toString()}`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error("Erro ao carregar inspeções recentes");
+      return resp.json();
+    },
   });
 
   const getPriorityColor = (priority: string) => {
