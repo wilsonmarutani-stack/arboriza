@@ -261,9 +261,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteInspecao(id: string): Promise<void> {
-    // Delete related candidates first
+    // First get all trees for this inspection
+    const treesForInspection = await db
+      .select({ id: arvores.id })
+      .from(arvores)
+      .where(eq(arvores.inspecaoId, id));
+
+    // Delete all tree photos for these trees
+    for (const tree of treesForInspection) {
+      await db.delete(arvoreFotos).where(eq(arvoreFotos.arvoreId, tree.id));
+    }
+
+    // Delete all trees for this inspection
+    await db.delete(arvores).where(eq(arvores.inspecaoId, id));
+
+    // Delete related species candidates
     await this.deleteEspecieCandidatos(id);
-    // Delete the inspection
+    
+    // Finally delete the inspection
     await db.delete(inspecoes).where(eq(inspecoes.id, id));
   }
 
