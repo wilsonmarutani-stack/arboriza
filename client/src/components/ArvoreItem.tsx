@@ -53,6 +53,9 @@ export function ArvoreItem({
   const latWatch = form?.watch(`${fieldName}.${index}.latitude`);
   const lngWatch = form?.watch(`${fieldName}.${index}.longitude`);
 
+  // Debug: verificar valores dos watches
+  console.log(`Árvore ${index} - latWatch:`, latWatch, 'lngWatch:', lngWatch);
+
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
