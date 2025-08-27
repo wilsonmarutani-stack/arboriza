@@ -23,6 +23,7 @@ interface ArvoresFieldArrayProps {
   control: Control<any>;
   name: string;
   form: any; // React Hook Form instance
+  gpsCoords?: { lat: number; lng: number } | null;
   onPhotoAdded?: (index: number, photoUrl: string) => void;
 }
 
@@ -30,6 +31,7 @@ export function ArvoresFieldArray({
   control, 
   name, 
   form,
+  gpsCoords,
   onPhotoAdded
 }: ArvoresFieldArrayProps) {
   const { fields, append, remove, update } = useFieldArray({
@@ -39,8 +41,8 @@ export function ArvoresFieldArray({
 
   const addArvore = () => {
     const newArvore: ArvoreData = {
-      latitude: undefined,
-      longitude: undefined,
+      latitude: gpsCoords?.lat ?? undefined,
+      longitude: gpsCoords?.lng ?? undefined,
       endereco: "",
       observacao: "",
       especieFinal: "",
@@ -97,6 +99,7 @@ export function ArvoresFieldArray({
               onPhotoAdded={onPhotoAdded}
               form={form}
               fieldName={name}
+              gpsCoords={gpsCoords}
             />
           ))
         )}

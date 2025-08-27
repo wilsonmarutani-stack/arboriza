@@ -1,0 +1,164 @@
+Quero usar as coordenadas obtidas no cabeçalho da inspeção (botão “Usar GPS” e/ou ajuste no mapa do topo) para preencher os campos de Latitude/Longitude de cada Árvore.
+
+Objetivo
+
+Manter no InspectionForm.tsx um estado com as coordenadas atuais do cabeçalho (ex.: inspectionCoords).
+
+Passar essas coords como prop para cada ArvoreItem.
+
+No ArvoreItem, o botão “Usar GPS” deve copiar as coords do cabeçalho para apenas aquela árvore (se não houver no cabeçalho, cai no navigator.geolocation como fallback).
+
+(Opcional) Ao clicar “Adicionar árvore”, pré-preencher a nova árvore com as coords atuais do cabeçalho.
+
+Não alterar nada em árvores que já tenham coordenadas, a menos que o usuário clique “Usar GPS” naquela árvore.
+
+Onde editar (projeto React/Vite)
+
+client/src/components/ui/InspectionForm.tsx
+
+client/src/components/ui/ArvoreItem.tsx
+
+(se existir) client/src/components/ui/ArvoresFieldArray.tsx
+
+Passos
+1) InspectionForm.tsx — estado do GPS do cabeçalho e repasse
+
+1.1 Crie o estado abaixo dos demais useState:
+
+const [inspectionCoords, setInspectionCoords] = useState<{ lat: number; lng: number } | null>(null);
+
+
+1.2 Quando o cabeçalho obtiver GPS (no handler do botão “Usar GPS” do topo), alimente esse estado além do que já faz no form:
+
+setInspectionCoords({ lat: newLat, lng: newLng });
+
+
+1.3 Quando o usuário editar/ajustar manualmente no topo, mantenha o estado sincronizado:
+
+useEffect(() => {
+  const lat = form.watch("latitude");
+  const lng = form.watch("longitude");
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    setInspectionCoords({ lat, lng });
+  } else {
+    setInspectionCoords(null);
+  }
+}, [form.watch("latitude"), form.watch("longitude")]);
+
+
+1.4 Passe a prop gpsCoords para as árvores:
+
+Se renderiza direto:
+
+{arvores.map((arvore, i) => (
+  <ArvoreItem
+    key={i}
+    index={i}
+    arvore={arvore}
+    onUpdate={updateArvore}
+    onRemove={removeArvore}
+    onPhotoAdded={onPhotoAdded}
+    form={form}
+    fieldName="arvores"
+    gpsCoords={inspectionCoords}  // <<<<<<
+  />
+))}
+
+
+Se usa ArvoresFieldArray, passe gpsCoords={inspectionCoords} para ele e replique a prop para cada ArvoreItem dentro dele.
+
+1.5 (Opcional) Pré-preencher novas árvores no handler de “Adicionar árvore”:
+
+append({
+  latitude:  inspectionCoords?.lat ?? undefined,
+  longitude: inspectionCoords?.lng ?? undefined,
+  endereco: "",
+  observacao: "",
+  fotos: [],
+});
+
+2) ArvoreItem.tsx — usar coords do cabeçalho
+
+2.1 Adicione a prop na interface e na função:
+
+interface ArvoreItemProps {
+  // ...já existentes
+  gpsCoords?: { lat: number; lng: number } | null;
+}
+
+export function ArvoreItem({
+  index, arvore, onUpdate, onRemove, onPhotoAdded,
+  form, fieldName = "arvores",
+  gpsCoords, // <<<<<<
+}: ArvoreItemProps) { /* ... */ }
+
+
+2.2 Atualize o handler do botão “Usar GPS” para preferir as coords do cabeçalho e só cair no geolocation se não houver:
+
+const handleLocationFromGPS = () => {
+  // 1) Preferir coordenadas do cabeçalho, se disponíveis
+  if (gpsCoords && Number.isFinite(gpsCoords.lat) && Number.isFinite(gpsCoords.lng)) {
+    const { lat, lng } = gpsCoords;
+
+    // Caso os inputs de coordenadas sejam texto (latText/lngText), atualize-os:
+    setLatText?.(String(lat));
+    setLngText?.(String(lng));
+
+    form?.setValue(`${fieldName}.${index}.latitude`,  lat, { shouldDirty: true, shouldValidate: true });
+    form?.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
+    onUpdate(index, { latitude: lat, longitude: lng });
+
+    fetchAddressForCoordinates?.(lat, lng);
+    toast?.({ title: "Coordenadas aplicadas", description: `${lat}, ${lng}` });
+    return;
+  }
+
+  // 2) Fallback: pegar do navigator.geolocation
+  if (!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      const lat = Number(coords.latitude.toFixed(6));
+      const lng = Number(coords.longitude.toFixed(6));
+
+      setLatText?.(String(lat));
+      setLngText?.(String(lng));
+
+      form?.setValue(`${fieldName}.${index}.latitude`,  lat, { shouldDirty: true, shouldValidate: true });
+      form?.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
+      onUpdate(index, { latitude: lat, longitude: lng });
+
+      fetchAddressForCoordinates?.(lat, lng);
+      toast?.({ title: "Localização obtida", description: `${lat}, ${lng}` });
+    },
+    () => {
+      toast?.({
+        title: "Erro ao obter localização",
+        description: "Permita o acesso à localização ou use o GPS do cabeçalho.",
+        variant: "destructive",
+      });
+    }
+  );
+};
+
+
+Observação: se os inputs de coordenadas da árvore estiverem como type="text" com estados latText/lngText, mantenha o update desses estados (setLatText, setLngText) para o valor aparecer na hora.
+
+Critérios de aceitação
+
+Clico “Usar GPS” no cabeçalho → aparece latitude/longitude corretas no topo.
+
+Em qualquer Árvore, clico “Usar GPS” → ela copia as coords do cabeçalho, atualiza os inputs e o endereço daquela árvore.
+
+Se o cabeçalho ainda não tem coords, o botão “Usar GPS” da árvore usa o navigator.geolocation como fallback.
+
+Ao Adicionar árvore, (opcional) ela já nasce com as coords do cabeçalho.
+
+Adicionar várias árvores funciona: cada árvore é atualizada independentemente quando o usuário clica “Usar GPS” nela.
+
+Observações
+
+Não sobrescreva coordenadas de outras árvores automaticamente quando o cabeçalho muda — só a árvore cujo botão foi clicado deve ser alterada (a menos que implementemos um botão “aplicar a todas”).
+
+Garanta que os value e onChange dos inputs de coordenadas continuam funcionando para digitação manual.
+
+Se os inputs forem type="number", considere trocar para type="text" com inputMode="decimal" e conversão no onBlur para aceitar - e . sem travar.

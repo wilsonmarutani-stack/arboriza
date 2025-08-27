@@ -30,6 +30,7 @@ interface ArvoreItemProps {
   onPhotoAdded?: (index: number, photoUrl: string) => void;
   form?: any; // React Hook Form instance
   fieldName?: string; // Field name prefix for form fields
+  gpsCoords?: { lat: number; lng: number } | null;
 }
 
 export function ArvoreItem({ 
@@ -39,7 +40,8 @@ export function ArvoreItem({
   onRemove,
   onPhotoAdded,
   form,
-  fieldName = "arvores"
+  fieldName = "arvores",
+  gpsCoords
 }: ArvoreItemProps) {
   const [isCollapsed, setIsCollapsed] = useState(index > 0);
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
@@ -111,6 +113,28 @@ export function ArvoreItem({
 
   
   const handleLocationFromGPS = () => {
+    // 1) Preferir coordenadas do cabeçalho, se disponíveis
+    if (gpsCoords && Number.isFinite(gpsCoords.lat) && Number.isFinite(gpsCoords.lng)) {
+      const { lat, lng } = gpsCoords;
+
+      // Update form values
+      if (form) {
+        form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
+        form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
+      }
+      
+      // Update component state
+      onUpdate(index, { latitude: lat, longitude: lng });
+      
+      // Fetch address for coordinates
+      fetchAddressForCoordinates(lat, lng);
+      
+      // Show success message
+      toast({ title: "Coordenadas aplicadas", description: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
+      return;
+    }
+
+    // 2) Fallback: pegar do navigator.geolocation
     if (!navigator.geolocation) {
       toast({ title: "Geolocalização não suportada", description: "Seu navegador não suporta geolocalização", variant: "destructive" });
       return;
@@ -118,28 +142,28 @@ export function ArvoreItem({
     
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const newLat = Number(position.coords.latitude.toFixed(6));
-        const newLng = Number(position.coords.longitude.toFixed(6));
+        const lat = Number(position.coords.latitude.toFixed(6));
+        const lng = Number(position.coords.longitude.toFixed(6));
         
         // Update form values
         if (form) {
-          form.setValue(`${fieldName}.${index}.latitude`, newLat, { shouldDirty: true, shouldValidate: true });
-          form.setValue(`${fieldName}.${index}.longitude`, newLng, { shouldDirty: true, shouldValidate: true });
+          form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
+          form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
         }
         
         // Update component state
-        onUpdate(index, { latitude: newLat, longitude: newLng });
-        
-        // Show success message
-        toast({ title: "Localização obtida", description: `Coordenadas atualizadas: ${newLat}, ${newLng}` });
+        onUpdate(index, { latitude: lat, longitude: lng });
         
         // Fetch address for coordinates
-        fetchAddressForCoordinates(newLat, newLng);
+        fetchAddressForCoordinates(lat, lng);
+        
+        // Show success message
+        toast({ title: "Localização obtida", description: `${lat.toFixed(6)}, ${lng.toFixed(6)}` });
       },
       () => {
         toast({
-          title: "Erro de localização",
-          description: "Não foi possível obter sua localização. Verifique as permissões do navegador.",
+          title: "Erro ao obter localização",
+          description: "Permita o acesso à localização ou use o GPS do cabeçalho.",
           variant: "destructive",
         });
       }

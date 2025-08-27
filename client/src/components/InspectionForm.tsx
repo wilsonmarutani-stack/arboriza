@@ -69,6 +69,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   });
   const [address, setAddress] = useState("");
   const [showMap, setShowMap] = useState(false);
+  const [inspectionCoords, setInspectionCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -194,6 +195,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       (position) => {
         const newCoords = { lat: position.coords.latitude, lng: position.coords.longitude };
         setCoordinates(newCoords);
+        setInspectionCoords(newCoords); // Alimentar estado das coordenadas do cabeçalho
         form.setValue("latitude", newCoords.lat);
         form.setValue("longitude", newCoords.lng);
         reverseGeocode(newCoords.lat, newCoords.lng);
@@ -228,6 +230,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   const handleMapMarkerDrag = (lat: number, lng: number) => {
     const newCoords = { lat, lng };
     setCoordinates(newCoords);
+    setInspectionCoords(newCoords); // Sincronizar estado do cabeçalho
     form.setValue("latitude", lat);
     form.setValue("longitude", lng);
     reverseGeocode(lat, lng);
@@ -240,6 +243,17 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       setShowMap(true);
     }
   };
+
+  // Sincronizar coordenadas editadas manualmente com inspectionCoords
+  useEffect(() => {
+    const lat = form.watch("latitude");
+    const lng = form.watch("longitude");
+    if (Number.isFinite(lat) && Number.isFinite(lng)) {
+      setInspectionCoords({ lat, lng });
+    } else {
+      setInspectionCoords(null);
+    }
+  }, [form.watch("latitude"), form.watch("longitude")]);
 
   const handleCameraCapture = async (event: Event) => {
     const input = event.target as HTMLInputElement;
@@ -793,6 +807,7 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
             control={form.control}
             name="arvores"
             form={form}
+            gpsCoords={inspectionCoords}
             onPhotoAdded={(index, photoUrl) => {
               identifySpeciesAutomatically(index, photoUrl);
             }}
