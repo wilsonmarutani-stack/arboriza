@@ -178,66 +178,76 @@ export function InspectionsTable({ onNewInspection, onEditInspection, onShowMap 
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Inspeções</h2>
-          <p className="text-gray-600 mt-1">Gerencie todas as inspeções registradas</p>
-        </div>
-        <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-          <div className="flex space-x-2">
-            <Input
-              placeholder="Buscar por número da nota..."
-              value={searchNota}
-              onChange={(e) => {
-                setSearchNota(e.target.value);
-                setFilters(prev => ({ ...prev, numeroNota: e.target.value || undefined }));
-              }}
-              className="w-64"
-              data-testid="input-search-nota"
-            />
-            <Button 
-              variant="outline" 
-              onClick={() => setShowFilters(!showFilters)}
-              data-testid="button-toggle-filters"
-            >
-              <Filter className="w-4 h-4 mr-2" />
-              Filtros
-            </Button>
+      {/* Header com visual melhorado */}
+      <div className="bg-gradient-to-r from-green-50 via-blue-50 to-indigo-50 rounded-2xl p-8 border border-gray-100 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Inspeções</h2>
+            <p className="text-gray-600 mt-2 text-lg">Gerencie e visualize todas as inspeções registradas</p>
           </div>
-          <div className="flex space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleExport('csv')}
-              data-testid="button-export-csv"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              CSV
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleExport('pdf')}
-              data-testid="button-export-pdf"
-            >
-              <FileText className="w-4 h-4 mr-2" />
-              PDF
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => handleExport('kml')}
-              data-testid="button-export-kml"
-            >
-              <MapPin className="w-4 h-4 mr-2" />
-              KML
-            </Button>
+          <div className="mt-6 sm:mt-0 flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+            <div className="flex space-x-3">
+              <Input
+                placeholder="Buscar por número da nota..."
+                value={searchNota}
+                onChange={(e) => {
+                  setSearchNota(e.target.value);
+                  setFilters(prev => ({ ...prev, numeroNota: e.target.value || undefined }));
+                }}
+                className="w-64 shadow-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500"
+                data-testid="input-search-nota"
+              />
+              <Button 
+                variant="outline" 
+                onClick={() => setShowFilters(!showFilters)}
+                data-testid="button-toggle-filters"
+                className="shadow-sm hover:shadow-md transition-all duration-200 border-gray-300"
+              >
+                <Filter className="w-4 h-4 mr-2" />
+                Filtros
+              </Button>
+            </div>
+            <div className="flex space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleExport('csv')}
+                data-testid="button-export-csv"
+                className="shadow-sm hover:shadow-md transition-all duration-200 border-green-300 text-green-700 hover:bg-green-50"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                CSV
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleExport('pdf')}
+                data-testid="button-export-pdf"
+                className="shadow-sm hover:shadow-md transition-all duration-200 border-red-300 text-red-700 hover:bg-red-50"
+              >
+                <FileText className="w-4 h-4 mr-2" />
+                PDF
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleExport('kml')}
+                data-testid="button-export-kml"
+                className="shadow-sm hover:shadow-md transition-all duration-200 border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <MapPin className="w-4 h-4 mr-2" />
+                KML
+              </Button>
+              <Button 
+                onClick={onNewInspection} 
+                data-testid="button-nova-inspecao"
+                className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Nova Inspeção
+              </Button>
+            </div>
           </div>
-          <Button onClick={onNewInspection} data-testid="button-nova-inspecao">
-            <Plus className="w-4 h-4 mr-2" />
-            Nova Inspeção
-          </Button>
         </div>
       </div>
 

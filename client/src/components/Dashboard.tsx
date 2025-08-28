@@ -103,35 +103,43 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-gray-600 mt-1">Visão geral das inspeções de arborização urbana</p>
-        </div>
-        <div className="mt-4 sm:mt-0 flex space-x-3">
-          <Button variant="outline" onClick={onShowReports} data-testid="button-export">
-            <FileText className="w-4 h-4 mr-2" />
-            Exportar
-          </Button>
-          <Button onClick={onNewInspection} data-testid="button-nova-inspecao">
-            <Plus className="w-4 h-4 mr-2" />
-            Nova Inspeção
-          </Button>
+      {/* Header com gradiente */}
+      <div className="bg-gradient-to-r from-green-50 via-blue-50 to-indigo-50 rounded-2xl p-8 border border-gray-100 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Sistema de Arborização Urbana</h2>
+            <p className="text-gray-600 mt-2 text-lg">Gestão inteligente de inspeções florestais com IA</p>
+          </div>
+          <div className="mt-6 sm:mt-0 flex space-x-3">
+            <Button variant="outline" onClick={onShowReports} data-testid="button-export" className="shadow-sm hover:shadow-md transition-all duration-200 border-gray-200">
+              <FileText className="w-4 h-4 mr-2" />
+              Exportar
+            </Button>
+            <Button onClick={onNewInspection} data-testid="button-nova-inspecao" className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-md hover:shadow-lg transition-all duration-200">
+              <Plus className="w-4 h-4 mr-2" />
+              Nova Inspeção
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
+      {/* Filtros com visual melhorado */}
+      <Card className="shadow-sm border-gray-200 hover:shadow-md transition-shadow duration-200">
+        <CardHeader className="bg-gray-50/50 rounded-t-lg">
+          <CardTitle className="flex items-center text-gray-800">
+            <Network className="w-5 h-5 mr-2 text-blue-600" />
+            Filtros de Pesquisa
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">EA</label>
+              <label className="text-sm font-semibold text-gray-700 mb-3 block flex items-center">
+                <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                Estação Avançada (EA)
+              </label>
               <Select value={selectedEaId} onValueChange={setSelectedEaId}>
-                <SelectTrigger data-testid="select-ea">
+                <SelectTrigger data-testid="select-ea" className="shadow-sm border-gray-300 focus:border-green-500 focus:ring-green-500">
                   <SelectValue placeholder="Todas as EAs" />
                 </SelectTrigger>
                 <SelectContent>
@@ -144,9 +152,12 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
             </div>
             
             <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">Município</label>
+              <label className="text-sm font-semibold text-gray-700 mb-3 block flex items-center">
+                <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                Município
+              </label>
               <Select value={selectedMunicipioId} onValueChange={setSelectedMunicipioId} disabled={selectedEaId === "all"}>
-                <SelectTrigger data-testid="select-municipio">
+                <SelectTrigger data-testid="select-municipio" className="shadow-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500 disabled:bg-gray-50">
                   <SelectValue placeholder="Todos os municípios" />
                 </SelectTrigger>
                 <SelectContent>
@@ -163,6 +174,7 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
                 variant="outline" 
                 onClick={() => { setSelectedEaId("all"); setSelectedMunicipioId("all"); }}
                 data-testid="button-limpar-filtros"
+                className="w-full shadow-sm hover:shadow-md transition-all duration-200 border-gray-300 text-gray-700 hover:bg-gray-50"
               >
                 Limpar filtros
               </Button>
@@ -171,19 +183,19 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
         </CardContent>
       </Card>
 
-      {/* Stats Cards */}
+      {/* Stats Cards com visual aprimorado */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
+        <Card className="bg-gradient-to-br from-white to-blue-50/30 shadow-md hover:shadow-lg transition-all duration-300 border-0 ring-1 ring-blue-100/50">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
-                  <Network className="w-6 h-6 text-primary-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Network className="w-7 h-7 text-white" />
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total de Inspeções</p>
-                <p className="text-3xl font-bold text-gray-900" data-testid="text-total-inspections">
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Total de Inspeções</p>
+                <p className="text-3xl font-bold text-gray-900 mt-1" data-testid="text-total-inspections">
                   {stats?.totalInspections || 0}
                 </p>
               </div>
@@ -191,17 +203,17 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-white to-red-50/30 shadow-md hover:shadow-lg transition-all duration-300 border-0 ring-1 ring-red-100/50">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <AlertTriangle className="w-7 h-7 text-white" />
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Alta Prioridade</p>
-                <p className="text-3xl font-bold text-red-600" data-testid="text-high-priority">
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Alta Prioridade</p>
+                <p className="text-3xl font-bold text-red-600 mt-1" data-testid="text-high-priority">
                   {stats?.highPriority || 0}
                 </p>
               </div>
@@ -209,17 +221,17 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-white to-amber-50/30 shadow-md hover:shadow-lg transition-all duration-300 border-0 ring-1 ring-amber-100/50">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-amber-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <Clock className="w-7 h-7 text-white" />
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Média Prioridade</p>
-                <p className="text-3xl font-bold text-amber-600" data-testid="text-medium-priority">
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Média Prioridade</p>
+                <p className="text-3xl font-bold text-amber-600 mt-1" data-testid="text-medium-priority">
                   {stats?.mediumPriority || 0}
                 </p>
               </div>
@@ -227,17 +239,17 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-white to-green-50/30 shadow-md hover:shadow-lg transition-all duration-300 border-0 ring-1 ring-green-100/50">
           <CardContent className="p-6">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
+                <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <CheckCircle className="w-7 h-7 text-white" />
                 </div>
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Baixa Prioridade</p>
-                <p className="text-3xl font-bold text-green-600" data-testid="text-low-priority">
+                <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Baixa Prioridade</p>
+                <p className="text-3xl font-bold text-green-600 mt-1" data-testid="text-low-priority">
                   {stats?.lowPriority || 0}
                 </p>
               </div>

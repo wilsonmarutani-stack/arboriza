@@ -16,7 +16,7 @@ import { ObjectUploader } from "./ObjectUploader";
 import { apiRequest } from "@/lib/queryClient";
 import { insertInspecaoSchema, type Ea, type Municipio, type Alimentador, type Subestacao } from "@shared/schema";
 import { identificarEspecie } from "@/services/ia";
-import { X, Camera, Brain, Save, MapPin } from "lucide-react";
+import { X, Camera, Brain, Save, MapPin, FileText } from "lucide-react";
 import { z } from "zod";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { UploadResult } from "@uppy/core";
@@ -431,33 +431,41 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Nova Inspeção</h2>
-          <p className="text-gray-600 mt-1">Registre uma nova inspeção de árvore urbana</p>
+      {/* Header com visual melhorado */}
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-6 mb-8 border border-gray-100 shadow-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Nova Inspeção</h2>
+            <p className="text-gray-600 mt-2 text-lg">Registre uma nova inspeção de árvore urbana com precisão GPS</p>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-form" className="hover:bg-white/50 rounded-xl">
+            <X className="w-6 h-6" />
+          </Button>
         </div>
-        <Button variant="ghost" size="icon" onClick={onClose} data-testid="button-close-form">
-          <X className="w-6 h-6" />
-        </Button>
       </div>
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {/* Basic Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Informações Básicas</CardTitle>
+          {/* Basic Information com visual melhorado */}
+          <Card className="shadow-md border-0 ring-1 ring-gray-200 hover:shadow-lg transition-all duration-200">
+            <CardHeader className="bg-gradient-to-r from-gray-50 to-blue-50/30 rounded-t-lg border-b border-gray-100">
+              <CardTitle className="flex items-center text-gray-800">
+                <FileText className="w-5 h-5 mr-2 text-blue-600" />
+                Informações Básicas
+              </CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
               <FormField
                 control={form.control}
                 name="numeroNota"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número da Nota *</FormLabel>
+                    <FormLabel className="text-gray-700 font-semibold flex items-center">
+                      <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                      Número da Nota *
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: 2024001" {...field} data-testid="input-numero-nota" />
+                      <Input placeholder="Ex: 2024001" {...field} data-testid="input-numero-nota" className="shadow-sm border-gray-300 focus:border-green-500 focus:ring-green-500" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -469,9 +477,12 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                 name="numeroOperativo"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Número Operativo</FormLabel>
+                    <FormLabel className="text-gray-700 font-semibold flex items-center">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full mr-2"></div>
+                      Número Operativo
+                    </FormLabel>
                     <FormControl>
-                      <Input placeholder="Ex: OP-2024-001" {...field} value={field.value || ""} data-testid="input-numero-operativo" />
+                      <Input placeholder="Ex: OP-2024-001" {...field} value={field.value || ""} data-testid="input-numero-operativo" className="shadow-sm border-gray-300 focus:border-blue-500 focus:ring-blue-500" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -483,13 +494,17 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
                 name="dataInspecao"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Data da Inspeção *</FormLabel>
+                    <FormLabel className="text-gray-700 font-semibold flex items-center">
+                      <div className="w-2 h-2 bg-purple-500 rounded-full mr-2"></div>
+                      Data da Inspeção *
+                    </FormLabel>
                     <FormControl>
                       <Input
                         type="datetime-local"
                         value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : ""}
                         onChange={(e) => field.onChange(new Date(e.target.value))}
                         data-testid="input-data-inspecao"
+                        className="shadow-sm border-gray-300 focus:border-purple-500 focus:ring-purple-500"
                       />
                     </FormControl>
                     <FormMessage />
