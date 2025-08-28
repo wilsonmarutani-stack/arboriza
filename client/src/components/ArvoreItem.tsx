@@ -47,16 +47,30 @@ export function ArvoreItem({
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
+  
+  // Estado local para coordenadas para garantir controle total
+  const [localLat, setLocalLat] = useState<number | undefined>(arvore.latitude);
+  const [localLng, setLocalLng] = useState<number | undefined>(arvore.longitude);
 
   // Watch apenas para observação
   const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
 
+  // Sincronizar estado local com props quando elas mudarem
+  useEffect(() => {
+    if (arvore.latitude !== localLat) {
+      setLocalLat(arvore.latitude);
+    }
+    if (arvore.longitude !== localLng) {
+      setLocalLng(arvore.longitude);
+    }
+  }, [arvore.latitude, arvore.longitude]);
+
   // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
   useEffect(() => {
     if (showMap) {
-      setTempCoords({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
+      setTempCoords({ lat: localLat ?? Number.NaN, lng: localLng ?? Number.NaN });
     }
-  }, [showMap, arvore.latitude, arvore.longitude]);
+  }, [showMap, localLat, localLng]);
 
   async function fetchAddressForCoordinates(lat: number, lng: number) {
     try {
@@ -148,13 +162,17 @@ export function ArvoreItem({
   };
 
   const applyCoordinates = (lat: number, lng: number, successMessage: string) => {
-    // Aplicar coordenadas no formulário primeiro
+    // Atualizar estado local primeiro
+    setLocalLat(lat);
+    setLocalLng(lng);
+    
+    // Aplicar coordenadas no formulário
     if (form) {
       form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
       form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
     }
     
-    // Atualizar estado do componente (mas sem triggering dos watches porque eles são debouncados)
+    // Atualizar estado do componente
     onUpdate(index, { latitude: lat, longitude: lng });
     
     // Buscar endereço
@@ -174,16 +192,24 @@ export function ArvoreItem({
   };
 
   const applyTempCoords = () => {
-    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : arvore.latitude;
-    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : arvore.longitude;
+    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : localLat;
+    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : localLng;
+    
+    // Atualizar estado local
+    setLocalLat(latToApply);
+    setLocalLng(lngToApply);
+    
+    // Sincronizar com formulário
     form?.setValue(`${fieldName}.${index}.latitude`, latToApply, { shouldDirty: true, shouldValidate: true });
     form?.setValue(`${fieldName}.${index}.longitude`, lngToApply, { shouldDirty: true, shouldValidate: true });
+    
+    // Atualizar estado do componente
     onUpdate(index, { latitude: latToApply, longitude: lngToApply });
+    
     if (latToApply && lngToApply) {
       fetchAddressForCoordinates(latToApply, lngToApply);
     }
 
-    
     setShowMap(false);
   };
 
@@ -272,9 +298,10 @@ export function ArvoreItem({
                   type="number"
                   step="any"
                   placeholder="Ex: -23.550520"
-                  value={arvore.latitude || ""}
+                  value={localLat || ""}
                   onChange={(e) => {
                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setLocalLat(value);
                     // Sincronizar com formulário e estado
                     if (form) {
                       form.setValue(`${fieldName}.${index}.latitude`, value, { shouldDirty: true, shouldValidate: true });
@@ -291,9 +318,10 @@ export function ArvoreItem({
                   type="number"
                   step="any"
                   placeholder="Ex: -47.295757"
-                  value={arvore.longitude || ""}
+                  value={localLng || ""}
                   onChange={(e) => {
                     const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                    setLocalLng(value);
                     // Sincronizar com formulário e estado
                     if (form) {
                       form.setValue(`${fieldName}.${index}.longitude`, value, { shouldDirty: true, shouldValidate: true });
@@ -305,11 +333,11 @@ export function ArvoreItem({
               </div>
             </div>
 
-            {arvore.latitude && arvore.longitude && (
+            {localLat && localLng && (
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-sm text-green-800">
                   <MapPin className="w-4 h-4 inline mr-1" />
-                  Coordenadas: {Number(arvore.latitude).toFixed(6)}, {Number(arvore.longitude).toFixed(6)}
+                  Coordenadas: {Number(localLat).toFixed(6)}, {Number(localLng).toFixed(6)}
                 </p>
               </div>
             )}

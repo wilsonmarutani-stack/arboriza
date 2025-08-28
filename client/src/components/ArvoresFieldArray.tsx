@@ -55,8 +55,6 @@ export function ArvoresFieldArray({
   const updateArvore = (index: number, updates: Partial<ArvoreData>) => {
     if (!updates || Object.keys(updates).length === 0) return;
     
-    console.log(`updateArvore chamado:`, { index, updates });
-    
     // Pegar o field atual e fazer merge com as atualizações
     const currentField = fields[index];
     const updatedField = {
@@ -66,7 +64,6 @@ export function ArvoresFieldArray({
     
     // Atualizar o field com os novos dados
     update(index, updatedField);
-    console.log(`Field ${index} atualizado:`, updatedField);
   };
 
   return (
