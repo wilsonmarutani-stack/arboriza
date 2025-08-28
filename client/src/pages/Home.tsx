@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
+import { LogOut, TreePine, Activity, FileText, Plus, Map } from "lucide-react";
 import { Dashboard } from "@/components/Dashboard";
 import { InspectionForm } from "@/components/InspectionForm";
 import { InspectionsTable } from "@/components/InspectionsTable";
@@ -7,11 +12,39 @@ import { MapView } from "@/components/MapView";
 type View = "dashboard" | "inspection-form" | "inspections" | "map" | "reports";
 
 export default function Home() {
+  const { user } = useAuth();
   const [currentView, setCurrentView] = useState<View>("dashboard");
   const [inspectionFormData, setInspectionFormData] = useState<{
     lat?: number;
     lng?: number;
   } | null>(null);
+
+  const handleLogout = () => {
+    window.location.href = '/api/logout';
+  };
+
+  const getInitials = (firstName?: string, lastName?: string, email?: string) => {
+    if (firstName && lastName) {
+      return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+    }
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  };
+
+  const getDisplayName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    if (user?.email) {
+      return user.email;
+    }
+    return 'Usuário';
+  };
 
   const handleNewInspection = (coordinates?: { lat: number; lng: number }) => {
     setInspectionFormData(coordinates || null);
@@ -188,22 +221,27 @@ export default function Home() {
             </nav>
 
             <div className="flex items-center space-x-4">
-              <button className="p-2 text-gray-400 hover:text-gray-600 relative" data-testid="button-notifications">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-                </svg>
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                  3
-                </span>
-              </button>
               <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                  <svg className="w-4 h-4 text-primary-600" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                  </svg>
+                <Avatar className="h-8 w-8">
+                  <AvatarImage src={user?.profileImageUrl} alt="Profile" />
+                  <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white text-xs">
+                    {getInitials(user?.firstName, user?.lastName, user?.email)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="hidden sm:block">
+                  <p className="text-sm font-medium text-gray-700">{getDisplayName()}</p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
-                <span className="text-sm font-medium text-gray-700">João Silva</span>
               </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="hover:bg-red-50 hover:border-red-200 hover:text-red-700 dark:hover:bg-red-900/20"
+              >
+                <LogOut className="mr-1 h-3 w-3" />
+                <span className="hidden sm:inline">Sair</span>
+              </Button>
             </div>
           </div>
         </div>

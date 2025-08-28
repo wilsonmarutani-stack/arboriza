@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { exportService } from "./exportService";
 import { insertInspecaoSchema, insertEspecieCandidatoSchema, insertArvoreSchema } from "@shared/schema";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -36,6 +37,21 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
+  // Setup authentication
+  await setupAuth(app);
+
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   // Serve uploaded files
   app.use('/uploads', (req, res, next) => {
     const filePath = path.join(uploadsDir, req.path);
@@ -74,7 +90,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Reference data endpoints
-  app.get("/api/refs/eas", async (req, res) => {
+  app.get("/api/refs/eas", isAuthenticated, async (req, res) => {
     try {
       const eas = await storage.getEas();
       res.json(eas);
@@ -83,7 +99,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/refs/municipios", async (req, res) => {
+  app.get("/api/refs/municipios", isAuthenticated, async (req, res) => {
     try {
       const eaId = req.query.ea_id as string;
       const municipios = await storage.getMunicipios(eaId);
@@ -93,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/refs/alimentadores", async (req, res) => {
+  app.get("/api/refs/alimentadores", isAuthenticated, async (req, res) => {
     try {
       const alimentadores = await storage.getAlimentadores();
       res.json(alimentadores);
@@ -102,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/refs/subestacoes", async (req, res) => {
+  app.get("/api/refs/subestacoes", isAuthenticated, async (req, res) => {
     try {
       const subestacoes = await storage.getSubestacoes();
       res.json(subestacoes);
@@ -112,7 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Inspections CRUD
-  app.get("/api/inspecoes", async (req, res) => {
+  app.get("/api/inspecoes", isAuthenticated, async (req, res) => {
     try {
       const filters = {
         eaId: req.query.ea_id as string,
@@ -133,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inspecoes/:id", async (req, res) => {
+  app.get("/api/inspecoes/:id", isAuthenticated, async (req, res) => {
     try {
       const inspecao = await storage.getInspecao(req.params.id);
       if (!inspecao) {
@@ -145,7 +161,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/inspecoes", upload.single('foto'), async (req, res) => {
+  app.post("/api/inspecoes", isAuthenticated, upload.single('foto'), async (req, res) => {
     try {
       // Parse and validate inspection data with proper number handling
       const latitude = req.body.latitude ? parseFloat(req.body.latitude) : undefined;
@@ -216,7 +232,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/inspecoes/:id", upload.single('foto'), async (req, res) => {
+  app.put("/api/inspecoes/:id", isAuthenticated, upload.single('foto'), async (req, res) => {
     try {
       const updateData = {
         ...req.body,
@@ -243,7 +259,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/inspecoes/:id", async (req, res) => {
+  app.delete("/api/inspecoes/:id", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteInspecao(req.params.id);
       res.status(204).send();
@@ -343,7 +359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Species candidates management
-  app.post("/api/inspecoes/:id/candidatos", async (req, res) => {
+  app.post("/api/inspecoes/:id/candidatos", isAuthenticated, async (req, res) => {
     try {
       const candidatos = req.body.candidatos.map((c: any) => ({
         ...c,
@@ -367,7 +383,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get("/api/dashboard/stats", async (req, res) => {
+  app.get("/api/dashboard/stats", isAuthenticated, async (req, res) => {
     try {
       const filters = {
         eaId: req.query.ea_id as string,
@@ -381,7 +397,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Árvores routes
-  app.get("/api/arvores", async (req, res) => {
+  app.get("/api/arvores", isAuthenticated, async (req, res) => {
     try {
       const arvores = await storage.getAllArvores();
       res.json(arvores);
@@ -391,7 +407,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/inspecoes/:id/arvores", async (req, res) => {
+  app.get("/api/inspecoes/:id/arvores", isAuthenticated, async (req, res) => {
     try {
       const arvores = await storage.getArvoresByInspecao(req.params.id);
       res.json(arvores);
@@ -401,7 +417,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/inspecoes/:id/arvores", async (req, res) => {
+  app.post("/api/inspecoes/:id/arvores", isAuthenticated, async (req, res) => {
     try {
       const arvoreData = { ...req.body, inspecaoId: req.params.id };
       const validatedArvore = insertArvoreSchema.parse(arvoreData);
@@ -423,7 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/inspecoes/:id/arvores/:arvoreId", async (req, res) => {
+  app.put("/api/inspecoes/:id/arvores/:arvoreId", isAuthenticated, async (req, res) => {
     try {
       // Parse and validate coordinates if provided
       const updateData = { ...req.body };
@@ -458,7 +474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/inspecoes/:id/arvores/:arvoreId", async (req, res) => {
+  app.delete("/api/inspecoes/:id/arvores/:arvoreId", isAuthenticated, async (req, res) => {
     try {
       await storage.deleteArvore(req.params.arvoreId);
       res.json({ success: true });
@@ -494,7 +510,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Export endpoints
-  app.get("/api/export/csv", async (req, res) => {
+  app.get("/api/export/csv", isAuthenticated, async (req, res) => {
     try {
       const filters = {
         eaId: req.query.ea_id as string,
@@ -516,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/export/kml", async (req, res) => {
+  app.get("/api/export/kml", isAuthenticated, async (req, res) => {
     try {
       const filters = {
         eaId: req.query.ea_id as string,
@@ -538,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/export/pdf", async (req, res) => {
+  app.get("/api/export/pdf", isAuthenticated, async (req, res) => {
     try {
       const filters = {
         eaId: req.query.ea_id as string,
