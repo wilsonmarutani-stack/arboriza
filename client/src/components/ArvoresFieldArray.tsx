@@ -57,8 +57,16 @@ export function ArvoresFieldArray({
     
     console.log(`updateArvore chamado:`, { index, updates });
     
-    // Força re-renderização
-    update(index, { ...fields[index], ...updates } as any);
+    // Pegar o field atual e fazer merge com as atualizações
+    const currentField = fields[index];
+    const updatedField = {
+      ...currentField,
+      ...updates
+    };
+    
+    // Atualizar o field com os novos dados
+    update(index, updatedField);
+    console.log(`Field ${index} atualizado:`, updatedField);
   };
 
   return (
