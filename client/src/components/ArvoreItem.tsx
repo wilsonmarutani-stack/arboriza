@@ -8,6 +8,7 @@ import { MapPin, Trash2, Upload, Brain, Map } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { MapComponent } from "./MapComponent";
+import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 
 interface ArvoreFoto {
   id?: string;
@@ -47,30 +48,19 @@ export function ArvoreItem({
   const [newPhotoFile, setNewPhotoFile] = useState<File | null>(null);
   const [showMap, setShowMap] = useState(false);
   const [tempCoords, setTempCoords] = useState({ lat: arvore.latitude ?? Number.NaN, lng: arvore.longitude ?? Number.NaN });
-  
-  // Estado local para coordenadas para garantir controle total
-  const [localLat, setLocalLat] = useState<number | undefined>(arvore.latitude);
-  const [localLng, setLocalLng] = useState<number | undefined>(arvore.longitude);
 
   // Watch apenas para observação
   const obsWatch = form?.watch(`${fieldName}.${index}.observacao`);
 
-  // Sincronizar estado local com props quando elas mudarem
-  useEffect(() => {
-    if (arvore.latitude !== localLat) {
-      setLocalLat(arvore.latitude);
-    }
-    if (arvore.longitude !== localLng) {
-      setLocalLng(arvore.longitude);
-    }
-  }, [arvore.latitude, arvore.longitude]);
 
-  // Sincronizar coordenadas temporárias apenas quando o mapa abre pela primeira vez
+  // Sincronizar coordenadas temporárias quando o mapa abre
   useEffect(() => {
     if (showMap) {
-      setTempCoords({ lat: localLat ?? Number.NaN, lng: localLng ?? Number.NaN });
+      const currentLat = form?.getValues(`${fieldName}.${index}.latitude`) ?? arvore.latitude;
+      const currentLng = form?.getValues(`${fieldName}.${index}.longitude`) ?? arvore.longitude;
+      setTempCoords({ lat: currentLat ?? Number.NaN, lng: currentLng ?? Number.NaN });
     }
-  }, [showMap, localLat, localLng]);
+  }, [showMap, form, fieldName, index, arvore.latitude, arvore.longitude]);
 
   async function fetchAddressForCoordinates(lat: number, lng: number) {
     try {
@@ -162,10 +152,6 @@ export function ArvoreItem({
   };
 
   const applyCoordinates = (lat: number, lng: number, successMessage: string) => {
-    // Atualizar estado local primeiro
-    setLocalLat(lat);
-    setLocalLng(lng);
-    
     // Aplicar coordenadas no formulário
     if (form) {
       form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
@@ -192,16 +178,16 @@ export function ArvoreItem({
   };
 
   const applyTempCoords = () => {
-    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : localLat;
-    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : localLng;
-    
-    // Atualizar estado local
-    setLocalLat(latToApply);
-    setLocalLng(lngToApply);
+    const latToApply = Number.isFinite(tempCoords.lat) ? tempCoords.lat : undefined;
+    const lngToApply = Number.isFinite(tempCoords.lng) ? tempCoords.lng : undefined;
     
     // Sincronizar com formulário
-    form?.setValue(`${fieldName}.${index}.latitude`, latToApply, { shouldDirty: true, shouldValidate: true });
-    form?.setValue(`${fieldName}.${index}.longitude`, lngToApply, { shouldDirty: true, shouldValidate: true });
+    if (latToApply !== undefined) {
+      form?.setValue(`${fieldName}.${index}.latitude`, latToApply, { shouldDirty: true, shouldValidate: true });
+    }
+    if (lngToApply !== undefined) {
+      form?.setValue(`${fieldName}.${index}.longitude`, lngToApply, { shouldDirty: true, shouldValidate: true });
+    }
     
     // Atualizar estado do componente
     onUpdate(index, { latitude: latToApply, longitude: lngToApply });
@@ -292,52 +278,62 @@ export function ArvoreItem({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label>Latitude *</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="Ex: -23.550520"
-                  value={localLat || ""}
-                  onChange={(e) => {
-                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                    setLocalLat(value);
-                    // Sincronizar com formulário e estado
-                    if (form) {
-                      form.setValue(`${fieldName}.${index}.latitude`, value, { shouldDirty: true, shouldValidate: true });
-                    }
-                    onUpdate(index, { latitude: value });
-                  }}
-                  data-testid={`input-latitude-${index}`}
-                />
-              </div>
+              <FormField
+                control={form?.control}
+                name={`${fieldName}.${index}.latitude`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Latitude *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="Ex: -23.550520"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                          field.onChange(value);
+                          onUpdate(index, { latitude: value });
+                        }}
+                        data-testid={`input-latitude-${index}`}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-              <div>
-                <Label>Longitude *</Label>
-                <Input
-                  type="number"
-                  step="any"
-                  placeholder="Ex: -47.295757"
-                  value={localLng || ""}
-                  onChange={(e) => {
-                    const value = e.target.value ? parseFloat(e.target.value) : undefined;
-                    setLocalLng(value);
-                    // Sincronizar com formulário e estado
-                    if (form) {
-                      form.setValue(`${fieldName}.${index}.longitude`, value, { shouldDirty: true, shouldValidate: true });
-                    }
-                    onUpdate(index, { longitude: value });
-                  }}
-                  data-testid={`input-longitude-${index}`}
-                />
-              </div>
+              <FormField
+                control={form?.control}
+                name={`${fieldName}.${index}.longitude`}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Longitude *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="any"
+                        placeholder="Ex: -47.295757"
+                        {...field}
+                        onChange={(e) => {
+                          const value = e.target.value ? parseFloat(e.target.value) : undefined;
+                          field.onChange(value);
+                          onUpdate(index, { longitude: value });
+                        }}
+                        data-testid={`input-longitude-${index}`}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
-            {localLat && localLng && (
+            {form?.watch(`${fieldName}.${index}.latitude`) && form?.watch(`${fieldName}.${index}.longitude`) && (
               <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
                 <p className="text-sm text-green-800">
                   <MapPin className="w-4 h-4 inline mr-1" />
-                  Coordenadas: {Number(localLat).toFixed(6)}, {Number(localLng).toFixed(6)}
+                  Coordenadas: {Number(form.watch(`${fieldName}.${index}.latitude`)).toFixed(6)}, {Number(form.watch(`${fieldName}.${index}.longitude`)).toFixed(6)}
                 </p>
               </div>
             )}
