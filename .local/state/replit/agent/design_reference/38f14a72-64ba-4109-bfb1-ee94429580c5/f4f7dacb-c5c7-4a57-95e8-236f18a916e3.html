@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Arborização Urbana</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#E8F5E8',
+                            100: '#C8E6C9',
+                            500: '#2E7D32',
+                            600: '#1B5E20',
+                            700: '#0D4E0F'
+                        },
+                        secondary: {
+                            50: '#E3F2FD',
+                            100: '#BBDEFB',
+                            500: '#1976D2',
+                            600: '#1565C0',
+                            700: '#0D47A1'
+                        }
+                    },
+                    fontFamily: {
+                        'sans': ['Inter', 'system-ui', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        };
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+</head>
+<body class="bg-gray-50">
+    <!-- @COMPONENT: AppShell [Navigation and main content container] -->
+    <div id="app" class="min-h-screen">
+        <!-- Navigation Header -->
+        <header class="bg-white shadow-sm border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center h-16">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-3">
+                            <div class="w-10 h-10 bg-primary-500 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-tree text-white text-lg"></i>
+                            </div>
+                            <div>
+                                <h1 class="text-xl font-semibold text-gray-900">Arborização Urbana</h1>
+                                <p class="text-sm text-gray-500">Sistema de Gestão de Inspeções</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <nav class="hidden md:flex space-x-8">
+                        <a href="#dashboard" class="nav-link active flex items-center space-x-2 text-primary-600 border-b-2 border-primary-600 pb-2">
+                            <i class="fas fa-chart-line text-sm"></i>
+                            <span>Dashboard</span>
+                        </a>
+                        <a href="#inspections" class="nav-link flex items-center space-x-2 text-gray-600 hover:text-primary-600 pb-2">
+                            <i class="fas fa-clipboard-list text-sm"></i>
+                            <span>Inspeções</span>
+                        </a>
+                        <a href="#map" class="nav-link flex items-center space-x-2 text-gray-600 hover:text-primary-600 pb-2">
+                            <i class="fas fa-map-marked-alt text-sm"></i>
+                            <span>Mapa</span>
+                        </a>
+                        <a href="#reports" class="nav-link flex items-center space-x-2 text-gray-600 hover:text-primary-600 pb-2">
+                            <i class="fas fa-file-alt text-sm"></i>
+                            <span>Relatórios</span>
+                        </a>
+                    </nav>
+
+                    <div class="flex items-center space-x-4">
+                        <button class="p-2 text-gray-400 hover:text-gray-600 relative">
+                            <i class="fas fa-bell text-lg"></i>
+                            <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">3</span>
+                        </button>
+                        <div class="flex items-center space-x-3">
+                            <div class="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                                <i class="fas fa-user text-primary-600 text-sm"></i>
+                            </div>
+                            <span class="text-sm font-medium text-gray-700">João Silva</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Mobile Navigation -->
+        <nav class="md:hidden bg-white border-t border-gray-200 fixed bottom-0 left-0 right-0 z-50">
+            <div class="flex justify-around py-2">
+                <button class="nav-mobile-btn active flex flex-col items-center py-2 px-1">
+                    <i class="fas fa-chart-line text-primary-600 text-lg"></i>
+                    <span class="text-xs text-primary-600 mt-1">Dashboard</span>
+                </button>
+                <button class="nav-mobile-btn flex flex-col items-center py-2 px-1">
+                    <i class="fas fa-clipboard-list text-gray-400 text-lg"></i>
+                    <span class="text-xs text-gray-400 mt-1">Inspeções</span>
+                </button>
+                <button class="nav-mobile-btn flex flex-col items-center py-2 px-1">
+                    <i class="fas fa-map-marked-alt text-gray-400 text-lg"></i>
+                    <span class="text-xs text-gray-400 mt-1">Mapa</span>
+                </button>
+                <button class="nav-mobile-btn flex flex-col items-center py-2 px-1">
+                    <i class="fas fa-file-alt text-gray-400 text-lg"></i>
+                    <span class="text-xs text-gray-400 mt-1">Relatórios</span>
+                </button>
+            </div>
+        </nav>
+        <!-- @END_COMPONENT: AppShell -->
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-20 md:mb-6">
+            
+            <!-- @COMPONENT: DashboardView [Main dashboard with stats and quick actions] -->
+            <div id="dashboard-view" class="view active">
+                <!-- Dashboard Header -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
+                        <p class="text-gray-600 mt-1">Visão geral das inspeções de arborização urbana</p>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex space-x-3">
+                        <button class="btn-secondary flex items-center space-x-2">
+                            <i class="fas fa-download text-sm"></i>
+                            <span>Exportar</span>
+                        </button>
+                        <button class="btn-primary flex items-center space-x-2" onclick="showInspectionForm()">
+                            <i class="fas fa-plus text-sm"></i>
+                            <span>Nova Inspeção</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-tree text-primary-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Total de Inspeções</p>
+                                <p class="text-3xl font-bold text-gray-900" data-bind="stats.totalInspections">847</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Alta Prioridade</p>
+                                <p class="text-3xl font-bold text-red-600" data-bind="stats.highPriority">23</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-clock text-amber-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Média Prioridade</p>
+                                <p class="text-3xl font-bold text-amber-600" data-bind="stats.mediumPriority">156</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                        <div class="flex items-center">
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                                    <i class="fas fa-check-circle text-green-600 text-xl"></i>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <p class="text-sm font-medium text-gray-600">Baixa Prioridade</p>
+                                <p class="text-3xl font-bold text-green-600" data-bind="stats.lowPriority">668</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Inspections & Quick Filters -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <!-- Recent Inspections -->
+                    <div class="lg:col-span-2">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200">
+                            <div class="px-6 py-4 border-b border-gray-200">
+                                <h3 class="text-lg font-semibold text-gray-900">Inspeções Recentes</h3>
+                            </div>
+                            <div class="p-0">
+                                <div class="overflow-hidden">
+                                    <!-- @MAP: recentInspections.map(inspection => ( -->
+                                    <div class="px-6 py-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-4">
+                                                <!-- Tree species photo placeholder -->
+                                                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <i class="fas fa-tree text-primary-600"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="font-medium text-gray-900" data-bind="inspection.species">Eucalyptus sp.</p>
+                                                    <p class="text-sm text-gray-600" data-bind="inspection.location">Rua das Flores, 123 - Salto/SP</p>
+                                                    <p class="text-xs text-gray-500" data-bind="inspection.datetime">Hoje, 14:30 - EA Salto</p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                                    Alta
+                                                </span>
+                                                <p class="text-xs text-gray-500 mt-1">ITU01</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="px-6 py-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-4">
+                                                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <i class="fas fa-tree text-primary-600"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="font-medium text-gray-900">Tipuana tipu</p>
+                                                    <p class="text-sm text-gray-600">Av. Brasil, 456 - Indaiatuba/SP</p>
+                                                    <p class="text-xs text-gray-500">Hoje, 13:15 - EA Indaiatuba</p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                                    Média
+                                                </span>
+                                                <p class="text-xs text-gray-500 mt-1">IND02</p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="px-6 py-4 hover:bg-gray-50 cursor-pointer">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center space-x-4">
+                                                <div class="w-12 h-12 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <i class="fas fa-tree text-primary-600"></i>
+                                                </div>
+                                                <div>
+                                                    <p class="font-medium text-gray-900">Sibipiruna sp.</p>
+                                                    <p class="text-sm text-gray-600">R. São Paulo, 789 - Itu/SP</p>
+                                                    <p class="text-xs text-gray-500">Ontem, 16:45 - EA Itu</p>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                    Baixa
+                                                </span>
+                                                <p class="text-xs text-gray-500 mt-1">ITU03</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <!-- @END_MAP -->
+                                </div>
+                                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+                                    <button class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                                        Ver todas as inspeções →
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Stats & Actions -->
+                    <div class="space-y-6">
+                        <!-- By Municipality Chart -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Por Município</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Salto</span>
+                                    <span class="text-sm font-medium text-gray-900">342</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-primary-500 h-2 rounded-full" style="width: 65%"></div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Indaiatuba</span>
+                                    <span class="text-sm font-medium text-gray-900">287</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-primary-500 h-2 rounded-full" style="width: 55%"></div>
+                                </div>
+                                
+                                <div class="flex items-center justify-between">
+                                    <span class="text-sm text-gray-600">Itu</span>
+                                    <span class="text-sm font-medium text-gray-900">218</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="bg-primary-500 h-2 rounded-full" style="width: 42%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Ações Rápidas</h3>
+                            <div class="space-y-3">
+                                <button class="w-full bg-primary-50 hover:bg-primary-100 border border-primary-200 rounded-lg p-3 text-left transition-colors" onclick="showInspectionForm()">
+                                    <div class="flex items-center space-x-3">
+                                        <i class="fas fa-plus-circle text-primary-600"></i>
+                                        <span class="text-primary-600 font-medium">Nova Inspeção</span>
+                                    </div>
+                                </button>
+                                
+                                <button class="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg p-3 text-left transition-colors">
+                                    <div class="flex items-center space-x-3">
+                                        <i class="fas fa-map-marked-alt text-gray-600"></i>
+                                        <span class="text-gray-600 font-medium">Visualizar Mapa</span>
+                                    </div>
+                                </button>
+                                
+                                <button class="w-full bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg p-3 text-left transition-colors">
+                                    <div class="flex items-center space-x-3">
+                                        <i class="fas fa-file-export text-gray-600"></i>
+                                        <span class="text-gray-600 font-medium">Gerar Relatório</span>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: DashboardView -->
+
+            <!-- @COMPONENT: InspectionForm [Tree inspection form with photo upload and map] -->
+            <div id="inspection-form" class="view hidden">
+                <div class="max-w-4xl mx-auto">
+                    <!-- Form Header -->
+                    <div class="flex items-center justify-between mb-8">
+                        <div>
+                            <h2 class="text-2xl font-bold text-gray-900">Nova Inspeção</h2>
+                            <p class="text-gray-600 mt-1">Registre uma nova inspeção de árvore urbana</p>
+                        </div>
+                        <button class="text-gray-400 hover:text-gray-600" onclick="hideInspectionForm()">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+
+                    <form class="space-y-8">
+                        <!-- Basic Information -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6">Informações Básicas</h3>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="form-group">
+                                    <label class="form-label">Número da Nota *</label>
+                                    <input type="text" class="form-input" placeholder="Ex: 2024001" required data-mock="true">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Número Operativo *</label>
+                                    <input type="text" class="form-input" placeholder="Ex: OP-2024-001" required data-mock="true">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Data da Inspeção *</label>
+                                    <input type="datetime-local" class="form-input" required data-mock="true">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Prioridade *</label>
+                                    <select class="form-input" required data-mock="true">
+                                        <option value="">Selecione a prioridade</option>
+                                        <option value="baixa">Baixa</option>
+                                        <option value="media">Média</option>
+                                        <option value="alta">Alta</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Location Information -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-lg font-semibold text-gray-900">Localização</h3>
+                                <button type="button" class="btn-secondary text-sm" onclick="getCurrentLocation()">
+                                    <i class="fas fa-location-arrow mr-2"></i>
+                                    Usar GPS
+                                </button>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div class="form-group">
+                                    <label class="form-label">EA (Estação Avançada) *</label>
+                                    <select class="form-input" required data-mock="true" data-event="change:updateMunicipalities">
+                                        <option value="">Selecione a EA</option>
+                                        <option value="salto">EA Salto</option>
+                                        <option value="indaiatuba">EA Indaiatuba</option>
+                                        <option value="itu">EA Itu</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Município *</label>
+                                    <select class="form-input" required data-mock="true">
+                                        <option value="">Selecione o município</option>
+                                        <option value="salto">Salto</option>
+                                        <option value="indaiatuba">Indaiatuba</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Alimentador *</label>
+                                    <input type="text" class="form-input font-mono" placeholder="Ex: ITU01" pattern="^[A-Z]{3}\d{2}$" title="Formato: 3 letras maiúsculas + 2 números" required data-mock="true">
+                                    <p class="text-xs text-gray-500 mt-1">Formato: 3 letras + 2 números (ex: ITU01)</p>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Subestação</label>
+                                    <input type="text" class="form-input" placeholder="Ex: Salto1 – Porto Góes" data-mock="true">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Latitude *</label>
+                                    <input type="number" step="any" class="form-input font-mono" placeholder="-23.123456" data-bind="coordinates.lat" data-mock="true">
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label class="form-label">Longitude *</label>
+                                    <input type="number" step="any" class="form-input font-mono" placeholder="-47.654321" data-bind="coordinates.lng" data-mock="true">
+                                </div>
+                            </div>
+
+                            <!-- Interactive Map -->
+                            <div class="form-group">
+                                <label class="form-label">Ajustar posição no mapa</label>
+                                <div id="inspection-map" class="h-80 rounded-lg border border-gray-300" data-implementation="Interactive Leaflet map with draggable marker"></div>
+                                <p class="text-xs text-gray-500 mt-2">Arraste o marcador para ajustar a posição exata da árvore</p>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Endereço</label>
+                                <input type="text" class="form-input" placeholder="Endereço será preenchido automaticamente" data-bind="address" readonly data-mock="true">
+                            </div>
+                        </div>
+
+                        <!-- Tree Information & Photo -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6">Informações da Árvore</h3>
+                            
+                            <!-- Photo Upload -->
+                            <div class="form-group mb-6">
+                                <label class="form-label">Foto da Árvore *</label>
+                                <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-primary-400 transition-colors">
+                                    <div id="photo-preview" class="hidden">
+                                        <!-- Beautiful tree photo representing the upload preview -->
+                                        <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=300" alt="Preview da foto da árvore" class="mx-auto rounded-lg shadow-sm max-h-64" data-mock-image="true" data-implementation="Use FileUpload component here">
+                                        <div class="mt-4 flex space-x-3 justify-center">
+                                            <button type="button" class="btn-primary text-sm" onclick="identifySpecies()">
+                                                <i class="fas fa-brain mr-2"></i>
+                                                Identificar Espécie (IA)
+                                            </button>
+                                            <button type="button" class="text-red-600 hover:text-red-700 text-sm">
+                                                <i class="fas fa-trash mr-1"></i>
+                                                Remover
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="photo-upload" class="text-gray-600">
+                                        <i class="fas fa-cloud-upload-alt text-4xl text-gray-400 mb-4"></i>
+                                        <p class="text-lg font-medium mb-2">Clique para fazer upload da foto</p>
+                                        <p class="text-sm">ou arraste e solte aqui</p>
+                                        <input type="file" accept="image/*" capture="camera" class="hidden" data-mock="true">
+                                        <button type="button" class="btn-primary mt-4">
+                                            <i class="fas fa-camera mr-2"></i>
+                                            Tirar Foto
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Species Identification Results -->
+                            <div id="species-results" class="hidden mb-6">
+                                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                    <div class="flex items-center mb-3">
+                                        <i class="fas fa-brain text-blue-600 mr-2"></i>
+                                        <h4 class="font-semibold text-blue-900">Identificação por IA</h4>
+                                        <span class="ml-auto bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">85% confiança</span>
+                                    </div>
+                                    
+                                    <div class="space-y-3">
+                                        <div class="bg-white rounded-lg p-3 border">
+                                            <div class="flex items-center justify-between">
+                                                <div>
+                                                    <p class="font-medium text-gray-900">Eucalyptus grandis</p>
+                                                    <p class="text-sm text-gray-600">Eucalipto</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="text-sm font-medium text-green-600">85%</span>
+                                                    <button class="ml-3 text-primary-600 hover:text-primary-700 text-sm">
+                                                        Usar esta espécie
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="bg-gray-50 rounded-lg p-3">
+                                            <div class="flex items-center justify-between">
+                                                <div>
+                                                    <p class="font-medium text-gray-700">Tipuana tipu</p>
+                                                    <p class="text-sm text-gray-500">Tipuana</p>
+                                                </div>
+                                                <div class="text-right">
+                                                    <span class="text-sm font-medium text-gray-600">12%</span>
+                                                    <button class="ml-3 text-primary-600 hover:text-primary-700 text-sm">
+                                                        Usar esta espécie
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Species Final Selection -->
+                            <div class="form-group">
+                                <label class="form-label">Espécie Final</label>
+                                <input type="text" class="form-input" placeholder="Espécie identificada ou corrigida manualmente" data-bind="finalSpecies" data-mock="true">
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-6">Observações Adicionais</h3>
+                            
+                            <div class="form-group">
+                                <label class="form-label">Observações</label>
+                                <textarea class="form-input" rows="4" placeholder="Descreva detalhes sobre a condição da árvore, interferências na rede elétrica, etc." data-mock="true"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6">
+                            <button type="button" class="btn-secondary" onclick="hideInspectionForm()">
+                                Cancelar
+                            </button>
+                            <button type="button" class="btn-outline">
+                                Salvar Rascunho
+                            </button>
+                            <button type="submit" class="btn-primary">
+                                <i class="fas fa-save mr-2"></i>
+                                Salvar Inspeção
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: InspectionForm -->
+
+            <!-- @COMPONENT: InspectionsTable [Data table with filters and actions] -->
+            <div id="inspections-table" class="view hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-900">Inspeções</h2>
+                        <p class="text-gray-600 mt-1">Gerencie todas as inspeções registradas</p>
+                    </div>
+                    <div class="mt-4 sm:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+                        <button class="btn-outline flex items-center space-x-2">
+                            <i class="fas fa-filter text-sm"></i>
+                            <span>Filtros</span>
+                        </button>
+                        <div class="flex space-x-2">
+                            <button class="btn-outline flex items-center space-x-2">
+                                <i class="fas fa-file-csv text-sm"></i>
+                                <span>CSV</span>
+                            </button>
+                            <button class="btn-outline flex items-center space-x-2">
+                                <i class="fas fa-file-pdf text-sm"></i>
+                                <span>PDF</span>
+                            </button>
+                            <button class="btn-outline flex items-center space-x-2">
+                                <i class="fas fa-map text-sm"></i>
+                                <span>KML</span>
+                            </button>
+                        </div>
+                        <button class="btn-primary flex items-center space-x-2" onclick="showInspectionForm()">
+                            <i class="fas fa-plus text-sm"></i>
+                            <span>Nova Inspeção</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Filters Bar -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 mb-8">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">EA</label>
+                            <select class="form-input-sm">
+                                <option value="">Todas as EAs</option>
+                                <option value="salto">EA Salto</option>
+                                <option value="indaiatuba">EA Indaiatuba</option>
+                                <option value="itu">EA Itu</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Município</label>
+                            <select class="form-input-sm">
+                                <option value="">Todos os municípios</option>
+                                <option value="salto">Salto</option>
+                                <option value="indaiatuba">Indaiatuba</option>
+                                <option value="itu">Itu</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Prioridade</label>
+                            <select class="form-input-sm">
+                                <option value="">Todas as prioridades</option>
+                                <option value="alta">Alta</option>
+                                <option value="media">Média</option>
+                                <option value="baixa">Baixa</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Período</label>
+                            <input type="date" class="form-input-sm">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4 flex justify-between">
+                        <button class="text-primary-600 hover:text-primary-700 text-sm font-medium">
+                            Limpar filtros
+                        </button>
+                        <p class="text-sm text-gray-500">847 registros encontrados</p>
+                    </div>
+                </div>
+
+                <!-- Data Table -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Data/EA
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Localização
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Espécie
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Alimentador
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Prioridade
+                                    </th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        Ações
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <!-- @MAP: inspections.map(inspection => ( -->
+                                <tr class="hover:bg-gray-50" data-mock="true">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">15/01/2024 14:30</div>
+                                            <div class="text-sm text-gray-500">EA Salto</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div>
+                                            <div class="text-sm text-gray-900">Salto/SP</div>
+                                            <div class="text-sm text-gray-500">Rua das Flores, 123</div>
+                                            <div class="text-xs text-gray-400 font-mono">-23.123456, -47.654321</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">Eucalyptus grandis</div>
+                                            <div class="text-sm text-gray-500">Confiança: 85%</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900 font-mono">ITU01</div>
+                                            <div class="text-sm text-gray-500">Salto1 – Porto Góes</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                            Alta
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                        <button class="text-primary-600 hover:text-primary-900" title="Ver/Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-blue-600 hover:text-blue-900" title="Ver no Mapa">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </button>
+                                        <button class="text-green-600 hover:text-green-900" title="Baixar Foto">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="text-red-600 hover:text-red-900" title="Excluir">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">15/01/2024 13:15</div>
+                                            <div class="text-sm text-gray-500">EA Indaiatuba</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div>
+                                            <div class="text-sm text-gray-900">Indaiatuba/SP</div>
+                                            <div class="text-sm text-gray-500">Av. Brasil, 456</div>
+                                            <div class="text-xs text-gray-400 font-mono">-23.098765, -47.543210</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">Tipuana tipu</div>
+                                            <div class="text-sm text-gray-500">Confiança: 78%</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900 font-mono">IND02</div>
+                                            <div class="text-sm text-gray-500">Indaiatuba1 – Centro</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                                            Média
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                        <button class="text-primary-600 hover:text-primary-900" title="Ver/Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-blue-600 hover:text-blue-900" title="Ver no Mapa">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </button>
+                                        <button class="text-green-600 hover:text-green-900" title="Baixar Foto">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="text-red-600 hover:text-red-900" title="Excluir">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">14/01/2024 16:45</div>
+                                            <div class="text-sm text-gray-500">EA Itu</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <div>
+                                            <div class="text-sm text-gray-900">Itu/SP</div>
+                                            <div class="text-sm text-gray-500">R. São Paulo, 789</div>
+                                            <div class="text-xs text-gray-400 font-mono">-23.264532, -47.298765</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900">Sibipiruna sp.</div>
+                                            <div class="text-sm text-gray-500">Confiança: 92%</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <div>
+                                            <div class="text-sm font-medium text-gray-900 font-mono">ITU03</div>
+                                            <div class="text-sm text-gray-500">Itu1 – Vila Padre Bento</div>
+                                        </div>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            Baixa
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                        <button class="text-primary-600 hover:text-primary-900" title="Ver/Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="text-blue-600 hover:text-blue-900" title="Ver no Mapa">
+                                            <i class="fas fa-map-marker-alt"></i>
+                                        </button>
+                                        <button class="text-green-600 hover:text-green-900" title="Baixar Foto">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                        <button class="text-red-600 hover:text-red-900" title="Excluir">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <!-- @END_MAP -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200">
+                        <div class="flex-1 flex justify-between sm:hidden">
+                            <button class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Anterior
+                            </button>
+                            <button class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                                Próximo
+                            </button>
+                        </div>
+                        <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                            <div>
+                                <p class="text-sm text-gray-700">
+                                    Mostrando <span class="font-medium">1</span> até <span class="font-medium">10</span> de <span class="font-medium">847</span> resultados
+                                </p>
+                            </div>
+                            <div>
+                                <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+                                    <button class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                        <i class="fas fa-chevron-left"></i>
+                                    </button>
+                                    <button class="bg-primary-50 border-primary-500 text-primary-600 relative inline-flex items-center px-4 py-2 border text-sm font-medium">1</button>
+                                    <button class="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">2</button>
+                                    <button class="bg-white border-gray-300 text-gray-500 hover:bg-gray-50 relative inline-flex items-center px-4 py-2 border text-sm font-medium">3</button>
+                                    <button class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </button>
+                                </nav>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: InspectionsTable -->
+
+            <!-- @COMPONENT: MapView [Interactive map with clustered markers and filters] -->
+            <div id="map-view" class="view hidden">
+                <div class="flex flex-col lg:flex-row gap-8">
+                    <!-- Map Container -->
+                    <div class="flex-1">
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div class="p-4 border-b border-gray-200">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="text-lg font-semibold text-gray-900">Mapa de Inspeções</h3>
+                                    <div class="flex items-center space-x-3">
+                                        <button class="text-gray-400 hover:text-gray-600" title="Localização atual">
+                                            <i class="fas fa-crosshairs"></i>
+                                        </button>
+                                        <button class="text-gray-400 hover:text-gray-600" title="Alternar camadas">
+                                            <i class="fas fa-layer-group"></i>
+                                        </button>
+                                        <button class="text-gray-400 hover:text-gray-600" title="Tela cheia">
+                                            <i class="fas fa-expand"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="main-map" class="h-96 lg:h-[600px]" data-implementation="Leaflet map with MarkerCluster showing inspection points"></div>
+                        </div>
+                        
+                        <!-- Map Legend -->
+                        <div class="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                            <h4 class="font-medium text-gray-900 mb-3">Legenda</h4>
+                            <div class="flex flex-wrap gap-4">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-4 h-4 bg-red-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600">Alta Prioridade</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-4 h-4 bg-amber-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600">Média Prioridade</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-4 h-4 bg-green-500 rounded-full"></div>
+                                    <span class="text-sm text-gray-600">Baixa Prioridade</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar with Filters and Details -->
+                    <div class="lg:w-80 space-y-6">
+                        <!-- Quick Add -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+                            <button class="w-full btn-primary flex items-center justify-center space-x-2" onclick="showInspectionForm()">
+                                <i class="fas fa-plus"></i>
+                                <span>Adicionar Inspeção</span>
+                            </button>
+                        </div>
+
+                        <!-- Filters -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Filtros</h3>
+                            
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">EA</label>
+                                    <select class="form-input-sm w-full">
+                                        <option value="">Todas as EAs</option>
+                                        <option value="salto">EA Salto (342)</option>
+                                        <option value="indaiatuba">EA Indaiatuba (287)</option>
+                                        <option value="itu">EA Itu (218)</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Município</label>
+                                    <select class="form-input-sm w-full">
+                                        <option value="">Todos os municípios</option>
+                                        <option value="salto">Salto</option>
+                                        <option value="indaiatuba">Indaiatuba</option>
+                                        <option value="itu">Itu</option>
+                                    </select>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Prioridade</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="rounded border-gray-300 text-red-600 focus:ring-red-500" checked>
+                                            <span class="ml-2 text-sm text-gray-600">Alta (23)</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="rounded border-gray-300 text-amber-600 focus:ring-amber-500" checked>
+                                            <span class="ml-2 text-sm text-gray-600">Média (156)</span>
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="checkbox" class="rounded border-gray-300 text-green-600 focus:ring-green-500" checked>
+                                            <span class="ml-2 text-sm text-gray-600">Baixa (668)</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Período</label>
+                                    <div class="grid grid-cols-1 gap-2">
+                                        <input type="date" class="form-input-sm" placeholder="Data inicial">
+                                        <input type="date" class="form-input-sm" placeholder="Data final">
+                                    </div>
+                                </div>
+                                
+                                <div class="pt-2">
+                                    <button class="w-full btn-outline text-sm">
+                                        <i class="fas fa-times mr-2"></i>
+                                        Limpar filtros
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Selected Point Details -->
+                        <div id="point-details" class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hidden">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Detalhes da Inspeção</h3>
+                            
+                            <div class="space-y-4">
+                                <!-- Tree photo showing a eucalyptus tree for the selected inspection -->
+                                <img src="https://pixabay.com/get/g3eeb6e27e9a52b24b6e32efa3b3a33e8aa24aaba5be420405f768d3fd095b20a79beeeffa386ee2b011942afa8c171117587c5709233002f8a4a3291b3d84eec_1280.jpg" alt="Foto da árvore inspecionada - Eucalyptus" class="w-full rounded-lg shadow-sm" data-mock-image="true">
+                                
+                                <div>
+                                    <h4 class="font-semibold text-gray-900">Eucalyptus grandis</h4>
+                                    <p class="text-sm text-gray-600">Confiança IA: 85%</p>
+                                </div>
+                                
+                                <div class="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <p class="text-gray-500">Data</p>
+                                        <p class="font-medium">15/01/2024</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">EA</p>
+                                        <p class="font-medium">EA Salto</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Município</p>
+                                        <p class="font-medium">Salto/SP</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500">Alimentador</p>
+                                        <p class="font-medium font-mono">ITU01</p>
+                                    </div>
+                                </div>
+                                
+                                <div>
+                                    <p class="text-gray-500 text-sm">Endereço</p>
+                                    <p class="font-medium">Rua das Flores, 123 - Salto/SP</p>
+                                </div>
+                                
+                                <div>
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Alta Prioridade
+                                    </span>
+                                </div>
+                                
+                                <div class="flex space-x-2 pt-4">
+                                    <button class="flex-1 btn-primary text-sm">
+                                        <i class="fas fa-edit mr-1"></i>
+                                        Editar
+                                    </button>
+                                    <button class="flex-1 btn-outline text-sm">
+                                        <i class="fas fa-eye mr-1"></i>
+                                        Ver Mais
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Summary Stats -->
+                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Resumo Atual</h3>
+                            
+                            <div class="space-y-3">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-gray-600">Total visível</span>
+                                    <span class="font-semibold text-gray-900">847</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-red-600">Alta prioridade</span>
+                                    <span class="font-semibold text-red-600">23</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-amber-600">Média prioridade</span>
+                                    <span class="font-semibold text-amber-600">156</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-green-600">Baixa prioridade</span>
+                                    <span class="font-semibold text-green-600">668</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: MapView -->
+
+        </main>
+
+        <!-- @COMPONENT: FloatingActionButton [Mobile FAB for quick actions] -->
+        <button class="fixed bottom-20 right-6 md:hidden w-14 h-14 bg-primary-500 hover:bg-primary-600 rounded-full shadow-lg flex items-center justify-center text-white transition-colors" onclick="showInspectionForm()">
+            <i class="fas fa-plus text-xl"></i>
+        </button>
+        <!-- @END_COMPONENT: FloatingActionButton -->
+
+        <!-- @COMPONENT: NotificationToast [Success/Error feedback] -->
+        <div id="toast-container" class="fixed top-20 right-6 z-50 space-y-2">
+            <!-- Success Toast Example (initially hidden) -->
+            <div class="toast hidden bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+                <i class="fas fa-check-circle"></i>
+                <span>Inspeção salva com sucesso!</span>
+                <button class="ml-auto text-white hover:text-green-100">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <!-- Error Toast Example (initially hidden) -->
+            <div class="toast hidden bg-red-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>Erro ao identificar espécie. Tente novamente.</span>
+                <button class="ml-auto text-white hover:text-red-100">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: NotificationToast -->
+
+        <!-- @COMPONENT: LoadingOverlay [Loading states for async operations] -->
+        <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg p-8 flex flex-col items-center space-y-4">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500"></div>
+                <p class="text-gray-600">Identificando espécie da árvore...</p>
+            </div>
+        </div>
+        <!-- @END_COMPONENT: LoadingOverlay -->
+    </div>
+
+    <style>
+        .form-label {
+            @apply block text-sm font-medium text-gray-700 mb-2;
+        }
+        
+        .form-input {
+            @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors;
+        }
+        
+        .form-input-sm {
+            @apply w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-primary-500 focus:border-primary-500 transition-colors;
+        }
+        
+        .btn-primary {
+            @apply bg-primary-500 hover:bg-primary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors focus:ring-2 focus:ring-primary-500 focus:ring-offset-2;
+        }
+        
+        .btn-secondary {
+            @apply bg-secondary-500 hover:bg-secondary-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+        }
+        
+        .btn-outline {
+            @apply border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors;
+        }
+        
+        .view {
+            @apply hidden;
+        }
+        
+        .view.active {
+            @apply block;
+        }
+        
+        .nav-link.active {
+            @apply text-primary-600 border-primary-600;
+        }
+        
+        .nav-mobile-btn.active i,
+        .nav-mobile-btn.active span {
+            @apply text-primary-600;
+        }
+    </style>
+
+    <script>
+        // TODO: Implement business logic, API calls, and state management
+        (function() {
+            // View navigation
+            function showView(viewId) {
+                document.querySelectorAll('.view').forEach(view => {
+                    view.classList.remove('active');
+                });
+                document.getElementById(viewId).classList.add('active');
+                
+                // Update navigation active states
+                updateNavigation(viewId);
+            }
+
+            function updateNavigation(activeView) {
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                
+                document.querySelectorAll('.nav-mobile-btn').forEach(btn => {
+                    btn.classList.remove('active');
+                    const icon = btn.querySelector('i');
+                    const span = btn.querySelector('span');
+                    icon.className = icon.className.replace('text-primary-600', 'text-gray-400');
+                    span.className = span.className.replace('text-primary-600', 'text-gray-400');
+                });
+            }
+
+            // Navigation event listeners
+            document.addEventListener('click', function(e) {
+                const target = e.target.closest('a[href^="#"], button[data-view]');
+                if (target) {
+                    e.preventDefault();
+                    const viewId = target.getAttribute('href')?.substring(1) || target.dataset.view;
+                    if (viewId && document.getElementById(viewId + '-view')) {
+                        showView(viewId + '-view');
+                    }
+                }
+            });
+
+            // Mobile navigation
+            document.querySelectorAll('.nav-mobile-btn').forEach((btn, index) => {
+                btn.addEventListener('click', function() {
+                    const views = ['dashboard-view', 'inspections-table', 'map-view', 'reports-view'];
+                    showView(views[index]);
+                    
+                    // Update mobile nav active state
+                    document.querySelectorAll('.nav-mobile-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // Global functions for form interactions
+            window.showInspectionForm = function() {
+                showView('inspection-form');
+            };
+
+            window.hideInspectionForm = function() {
+                showView('dashboard-view');
+            };
+
+            window.getCurrentLocation = function() {
+                // TODO: Implement geolocation API integration
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(function(position) {
+                        const lat = position.coords.latitude;
+                        const lng = position.coords.longitude;
+                        console.log('Location obtained:', lat, lng);
+                        // Update form fields and map
+                    });
+                }
+            };
+
+            window.identifySpecies = function() {
+                // TODO: Show loading overlay and call AI API
+                document.getElementById('loading-overlay').classList.remove('hidden');
+                
+                setTimeout(() => {
+                    document.getElementById('loading-overlay').classList.add('hidden');
+                    document.getElementById('species-results').classList.remove('hidden');
+                    
+                    // Show success toast
+                    showToast('Espécie identificada com sucesso!', 'success');
+                }, 3000);
+            };
+
+            function showToast(message, type = 'success') {
+                const toast = document.createElement('div');
+                toast.className = `toast bg-${type === 'success' ? 'green' : 'red'}-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3`;
+                toast.innerHTML = `
+                    <i class="fas fa-${type === 'success' ? 'check' : 'exclamation'}-circle"></i>
+                    <span>${message}</span>
+                    <button class="ml-auto text-white hover:text-${type === 'success' ? 'green' : 'red'}-100" onclick="this.parentElement.remove()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                document.getElementById('toast-container').appendChild(toast);
+                
+                setTimeout(() => {
+                    toast.remove();
+                }, 5000);
+            }
+
+            // Initialize maps when views become active
+            function initializeMaps() {
+                // TODO: Initialize Leaflet maps with MarkerCluster
+                if (typeof L !== 'undefined') {
+                    // Inspection form map
+                    if (document.getElementById('inspection-map')) {
+                        const inspectionMap = L.map('inspection-map').setView([-23.2017, -47.2911], 13);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(inspectionMap);
+                        
+                        const marker = L.marker([-23.2017, -47.2911], {draggable: true}).addTo(inspectionMap);
+                        marker.on('dragend', function(e) {
+                            // TODO: Update form coordinates and reverse geocoding
+                            console.log('Marker moved to:', e.target.getLatLng());
+                        });
+                    }
+
+                    // Main map view
+                    if (document.getElementById('main-map')) {
+                        const mainMap = L.map('main-map').setView([-23.2017, -47.2911], 11);
+                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mainMap);
+                        
+                        // TODO: Add marker clustering and inspection points
+                        const markers = L.markerClusterGroup();
+                        
+                        // Sample markers for demonstration
+                        const samplePoints = [
+                            {lat: -23.2017, lng: -47.2911, priority: 'alta', species: 'Eucalyptus grandis'},
+                            {lat: -23.0917, lng: -47.2336, priority: 'media', species: 'Tipuana tipu'},
+                            {lat: -23.2647, lng: -47.2985, priority: 'baixa', species: 'Sibipiruna sp.'}
+                        ];
+                        
+                        samplePoints.forEach(point => {
+                            const color = point.priority === 'alta' ? 'red' : point.priority === 'media' ? 'orange' : 'green';
+                            const marker = L.marker([point.lat, point.lng])
+                                .bindPopup(`<strong>${point.species}</strong><br>Prioridade: ${point.priority}`);
+                            markers.addLayer(marker);
+                        });
+                        
+                        mainMap.addLayer(markers);
+                    }
+                }
+            }
+
+            // Initialize app
+            document.addEventListener('DOMContentLoaded', function() {
+                initializeMaps();
+            });
+
+        })();
+    </script>
+</body>
+</html>

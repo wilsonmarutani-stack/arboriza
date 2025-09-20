@@ -223,9 +223,9 @@ export default function Home() {
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user?.profileImageUrl} alt="Profile" />
+                  <AvatarImage src={user?.profileImageUrl || undefined} alt="Profile" />
                   <AvatarFallback className="bg-gradient-to-br from-green-500 to-blue-600 text-white text-xs">
-                    {getInitials(user?.firstName, user?.lastName, user?.email)}
+                    {getInitials(user?.firstName || undefined, user?.lastName || undefined, user?.email || undefined)}
                   </AvatarFallback>
                 </Avatar>
                 <div className="hidden sm:block">

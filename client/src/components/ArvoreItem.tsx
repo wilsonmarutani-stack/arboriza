@@ -67,30 +67,46 @@ export function ArvoreItem({
       const response = await fetch(`/api/geocoding/reverse?lat=${lat}&lng=${lng}`);
       if (response.ok) {
         const data = await response.json();
-        onUpdate(index, { endereco: data.endereco });
+        // Atualizar diretamente no formulário e forçar re-render
+        if (form) {
+          form.setValue(`${fieldName}.${index}.endereco`, data.endereco, { 
+            shouldDirty: true, 
+            shouldValidate: true,
+            shouldTouch: true 
+          });
+          // Forçar re-render do campo de endereço
+          form.trigger(`${fieldName}.${index}.endereco`);
+          console.log(`[GPS] Endereço definido no formulário: ${data.endereco}`);
+        }
       }
     } catch (error) {
       console.error("Erro ao buscar endereço:", error);
     }
   }
-  // registra campos no RHF para setValue funcionarem
-  useEffect(() => {
-    if (!form) return;
-    form.register(`${fieldName}.${index}.latitude`);
-    form.register(`${fieldName}.${index}.longitude`);
-    form.register(`${fieldName}.${index}.observacao`);
-  }, [form, fieldName, index]);
+  // Registro de campos removido - agora feito no useEffect de inicialização
 
-  // hidrata o RHF com os valores atuais de 'arvore' apenas na inicialização
+  // Controle de inicialização mais robusto
+  const [isInitialized, setIsInitialized] = useState(false);
+  const [lastGpsUpdate, setLastGpsUpdate] = useState<number>(0);
+  
   useEffect(() => {
-    if (!form) return;
+    if (!form || isInitialized) return;
+    
     const latPath = `${fieldName}.${index}.latitude`;
     const lngPath = `${fieldName}.${index}.longitude`;
     const obsPath = `${fieldName}.${index}.observacao`;
 
+    // Registrar os campos primeiro
+    const endPath = `${fieldName}.${index}.endereco`;
+    form.register(latPath);
+    form.register(lngPath);
+    form.register(obsPath);
+    form.register(endPath);
+
     const currentLat = form.getValues(latPath);
     const currentLng = form.getValues(lngPath);
     const currentObs = form.getValues(obsPath);
+    const currentEnd = form.getValues(endPath);
 
     // Só hidrata se o campo do formulário está vazio/undefined E temos um valor no arvore
     if ((currentLat === undefined || currentLat === null || currentLat === '') && arvore.latitude != null) {
@@ -102,7 +118,12 @@ export function ArvoreItem({
     if ((currentObs === undefined || currentObs === null || currentObs === '') && arvore.observacao != null) {
       form.setValue(obsPath, arvore.observacao, { shouldDirty: false, shouldValidate: false });
     }
-  }, [form, fieldName, index]);
+    if ((currentEnd === undefined || currentEnd === null || currentEnd === '') && arvore.endereco != null) {
+      form.setValue(endPath, arvore.endereco, { shouldDirty: false, shouldValidate: false });
+    }
+    
+    setIsInitialized(true);
+  }, [form, fieldName, index, isInitialized]);
 
   function useDebouncedEffect(fn: () => void, deps: any[], delay: number) {
     useEffect(() => {
@@ -152,14 +173,27 @@ export function ArvoreItem({
   };
 
   const applyCoordinates = (lat: number, lng: number, successMessage: string) => {
-    // Aplicar coordenadas no formulário
+    const timestamp = Date.now();
+    setLastGpsUpdate(timestamp);
+    
+    console.log(`[GPS] Aplicando coordenadas: ${lat}, ${lng} para árvore ${index}`);
+    
+    // Aplicar valores diretamente no formulário (igual ao cabeçalho que funciona)
     if (form) {
-      form.setValue(`${fieldName}.${index}.latitude`, lat, { shouldDirty: true, shouldValidate: true });
-      form.setValue(`${fieldName}.${index}.longitude`, lng, { shouldDirty: true, shouldValidate: true });
+      const latPath = `${fieldName}.${index}.latitude`;
+      const lngPath = `${fieldName}.${index}.longitude`;
+      
+      // Usar a mesma abordagem do cabeçalho que funciona
+      form.setValue(latPath, lat, { shouldDirty: true, shouldValidate: true });
+      form.setValue(lngPath, lng, { shouldDirty: true, shouldValidate: true });
+      
+      console.log(`[GPS] Valores definidos no formulário: ${latPath}=${lat}, ${lngPath}=${lng}`);
+      console.log(`[GPS] Verificação - form.getValues('${latPath}'):`, form.getValues(latPath));
+      console.log(`[GPS] Verificação - form.getValues('${lngPath}'):`, form.getValues(lngPath));
     }
     
-    // Atualizar estado do componente
-    onUpdate(index, { latitude: lat, longitude: lng });
+    // NÃO chamar onUpdate imediatamente para evitar conflitos
+    // Deixar o formulário ser a única fonte da verdade
     
     // Buscar endereço
     fetchAddressForCoordinates(lat, lng);
@@ -169,6 +203,9 @@ export function ArvoreItem({
       title: successMessage, 
       description: `${lat.toFixed(6)}, ${lng.toFixed(6)}` 
     });
+    
+    // NÃO chamar onUpdate para coordenadas GPS - deixar o formulário ser a fonte da verdade
+    // O FieldArray.update() está sobrescrevendo os valores corretos!
   };
 
 
@@ -290,10 +327,12 @@ export function ArvoreItem({
                         step="any"
                         placeholder="Ex: -23.550520"
                         {...field}
+                        value={field.value || ""}
                         onChange={(e) => {
                           const value = e.target.value ? parseFloat(e.target.value) : undefined;
                           field.onChange(value);
-                          onUpdate(index, { latitude: value });
+                          // Remover onUpdate imediato para evitar conflitos com FieldArray
+                          console.log(`[Input] Latitude alterada manualmente: ${value}`);
                         }}
                         data-testid={`input-latitude-${index}`}
                       />
@@ -315,10 +354,12 @@ export function ArvoreItem({
                         step="any"
                         placeholder="Ex: -47.295757"
                         {...field}
+                        value={field.value || ""}
                         onChange={(e) => {
                           const value = e.target.value ? parseFloat(e.target.value) : undefined;
                           field.onChange(value);
-                          onUpdate(index, { longitude: value });
+                          // Remover onUpdate imediato para evitar conflitos com FieldArray
+                          console.log(`[Input] Longitude alterada manualmente: ${value}`);
                         }}
                         data-testid={`input-longitude-${index}`}
                       />
@@ -421,15 +462,28 @@ export function ArvoreItem({
 
 
           {/* Address */}
-          <div>
-            <Label>Endereço</Label>
-            <Input
-              value={arvore.endereco || ""}
-              onChange={(e) => onUpdate(index, { endereco: e.target.value })}
-              placeholder="Endereço será preenchido automaticamente"
-              data-testid={`input-endereco-${index}`}
-            />
-          </div>
+          <FormField
+            control={form?.control}
+            name={`${fieldName}.${index}.endereco`}
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Endereço</FormLabel>
+                <FormControl>
+                  <Input
+                    {...field}
+                    value={field.value || ""}
+                    placeholder="Endereço será preenchido automaticamente"
+                    data-testid={`input-endereco-${index}`}
+                    onChange={(e) => {
+                      field.onChange(e.target.value);
+                      console.log(`[Input] Endereço alterado manualmente: ${e.target.value}`);
+                    }}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           {/* Observation */}
           <div>

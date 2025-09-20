@@ -108,7 +108,7 @@ export function Dashboard({ onNewInspection, onShowMap, onShowReports }: Dashboa
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">Sistema de Arborização Urbana</h2>
-            <p className="text-gray-600 mt-2 text-lg">Gestão inteligente de inspeções florestais com IA</p>
+            <p className="text-gray-600 mt-2 text-lg">Gestão inteligente de inspeções com IA</p>
           </div>
           <div className="mt-6 sm:mt-0 flex space-x-3">
             <Button variant="outline" onClick={onShowReports} data-testid="button-export" className="shadow-sm hover:shadow-md transition-all duration-200 border-gray-200">

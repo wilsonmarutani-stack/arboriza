@@ -4,7 +4,10 @@ import { storage } from "./storage";
 import { ObjectStorageService } from "./objectStorage";
 import { exportService } from "./exportService";
 import { insertInspecaoSchema, insertEspecieCandidatoSchema, insertArvoreSchema } from "@shared/schema";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// import { setupAuth, isAuthenticated } from "./replitAuth";
+
+// Mock authentication for development
+const isAuthenticated = (req: any, res: any, next: any) => next();
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -37,12 +40,26 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
-  // Setup authentication
-  await setupAuth(app);
+  // Setup authentication - disabled for development
+  // await setupAuth(app);
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
+      // Mock user for development
+      if (process.env.NODE_ENV === 'development') {
+        const mockUser = {
+          id: 'dev-user-123',
+          email: 'dev@arborinsight.com',
+          firstName: 'Usuário',
+          lastName: 'Desenvolvimento',
+          profileImageUrl: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        return res.json(mockUser);
+      }
+
       const userId = req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
@@ -51,6 +68,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
+
+  // Mock login route for development
+  if (process.env.NODE_ENV === 'development') {
+    app.get('/api/login', (req, res) => {
+      // In development, just redirect to home
+      res.redirect('/');
+    });
+  }
 
   // Serve uploaded files
   app.use('/uploads', (req, res, next) => {

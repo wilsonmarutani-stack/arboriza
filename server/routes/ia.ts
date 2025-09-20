@@ -45,7 +45,7 @@ router.post("/identificar-especie", async (req, res) => {
     // calcular confiança média só dos top 5
     const top = candidatos.slice(0, 5);
     const confianca_media = top.length
-      ? Math.round(top.reduce((acc, c) => acc + (c.confianca || 0), 0) / top.length)
+      ? Math.round(top.reduce((acc: number, c: any) => acc + (c.confianca || 0), 0) / top.length)
       : null;
 
     // NÃO salvamos direto; devolvemos para o front decidir/confirmar

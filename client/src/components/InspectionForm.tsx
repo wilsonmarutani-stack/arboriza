@@ -91,8 +91,8 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
       observacoes: "",
       especieFinal: "",
       arvores: [{
-        latitude: coordinates.lat,
-        longitude: coordinates.lng,
+        latitude: coordinates.lat || undefined,
+        longitude: coordinates.lng || undefined,
         endereco: "",
         observacao: "",
         especieFinal: "",
@@ -245,15 +245,24 @@ export function InspectionForm({ onClose, initialData }: InspectionFormProps) {
   };
 
   // Sincronizar coordenadas editadas manualmente com inspectionCoords
+  // Usar useEffect com watch para evitar loops infinitos
   useEffect(() => {
-    const lat = form.watch("latitude");
-    const lng = form.watch("longitude");
-    if (Number.isFinite(lat) && Number.isFinite(lng)) {
-      setInspectionCoords({ lat, lng });
-    } else {
-      setInspectionCoords(null);
-    }
-  }, [form.watch("latitude"), form.watch("longitude")]);
+    const subscription = form.watch((value, { name }) => {
+      // Só atualizar inspectionCoords se a mudança veio dos campos do cabeçalho
+      if (name === "latitude" || name === "longitude") {
+        const lat = value.latitude;
+        const lng = value.longitude;
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+          setInspectionCoords({ lat: lat as number, lng: lng as number });
+          // Também atualizar o estado coordinates para manter consistência
+          setCoordinates({ lat: lat as number, lng: lng as number });
+        } else {
+          setInspectionCoords(null);
+        }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
 
   const handleCameraCapture = async (event: Event) => {
     const input = event.target as HTMLInputElement;

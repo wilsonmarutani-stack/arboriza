@@ -1,3 +1,4 @@
+import "./env";
 import { 
   type Ea, type InsertEa,
   type Municipio, type InsertMunicipio,
